@@ -31,10 +31,10 @@ function reachableCount(f) {
       if (!seen.has(k)) { seen.add(k); q.push([nr, nc]) }
     })
   }
-  return seen.size
+  return seen
 }
 for (const seed of [1, 2, 3, 42, 999, 31337])
-  check("seed " + seed + " fully connected (42 nodes)", reachableCount(D.generate(seed)) === 42)
+  check("seed " + seed + " fully connected (42 nodes)", reachableCount(D.generate(seed)).size === 42)
 
 // Stairs: up at start corner, down exists and isn't the start
 const f = D.generate(42)
@@ -44,11 +44,24 @@ f.nodes.forEach((row, r) => row.forEach((n, c2) => { if (n.feature === "down") {
 check("exactly one downstairs", downs === 1)
 check("downstairs not at entrance", !(downPos.row === f.start.row && downPos.col === f.start.col))
 
-// Vista from entrance facing north: depth-1 end wall state matches movement
+// Downstairs is REACHABLE from the entrance on every seed we test —
+// the generator carves a perfect maze over all 42 cells, so this is a
+// contract check against future algorithm tweaks, not a hope.
+for (const seed of [1, 2, 3, 7, 42, 123, 999, 12345, 31337]) {
+  const ff = D.generate(seed)
+  const reach = reachableCount(ff)
+  let downAt = null
+  ff.nodes.forEach((row, r) => row.forEach((n, c2) => { if (n.feature === "down") downAt = r + "," + c2 }))
+  check("seed " + seed + " downstairs reachable from entrance", reach.has(downAt))
+}
+
+// Vista from entrance: depths 1-3, end walls stop further lookahead
 let pos = { row: f.start.row, col: f.start.col, facing: 0 }
 const v = D.vista(f, pos)
-check("vista returns 2 depths", v.length === 2)
+check("vista returns 3 depths", v.length === 3)
 check("depth1 end == wall ahead", v[0].end === D.hasWall(f, pos.row, pos.col, 0))
+check("depth beyond end wall invisible",
+  v.slice(1).every((d, i) => !v[i].end || !v[i + 1].visible))
 
 // Movement respects walls: try stepping in a direction; result consistent
 // with hasWall.

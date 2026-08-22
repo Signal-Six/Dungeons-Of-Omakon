@@ -73,7 +73,7 @@ Panel {
     explored = next    // new object identity so the automap re-evaluates
   }
 
-  readonly property var view: floor ? Dungeon.vista(floor, pos) : []
+  property var view: pos ? Dungeon.vista(floor, pos) : []
   function wallAt(rel) { return Dungeon.hasWall(floor, pos.row, pos.col, (pos.facing + rel + 4) % 4) }
 
   function move(dir) {
@@ -208,11 +208,15 @@ Panel {
           onPaint: {
             var ctx = getContext("2d")
             var W = width, H = height
+            // Canvas persists between paints — clear fully first or old wall
+            // slices linger and smear over the new frame.
+            ctx.clearRect(0, 0, W, H)
             var W2 = W / 2, H2 = H / 2
 
-            // face geometry at depth d (0 = current cell, 1, 2): half-size of
+            // face geometry at depth d (0 = current cell, 1..3): half-size of
             // the projected square face, centered.
-            var half = [Math.min(W2, H2) * 1.0, Math.min(W2, H2) * 0.62, Math.min(W2, H2) * 0.30]
+            var base = Math.min(W2, H2)
+            var half = [base * 1.0, base * 0.62, base * 0.38, base * 0.22]
 
             function faceRect(d) {
               return { x: W2 - half[d], y: H2 - half[d], w: half[d] * 2, h: half[d] * 2 }
@@ -242,29 +246,28 @@ Panel {
             }
 
             var v = root.view
-            if (v.length !== 2) return
+            if (v.length !== 3) return
 
-            var colEnd = ["#6e6552", "#46413a"]   // depth-1, depth-2 end walls
-            var colSide = ["#8a7f66", "#565045"]  // depth-1, depth-2 side walls
+            var colEnd = ["#6e6552", "#46413a", "#2c2822"]   // brightness falls off
+            var colSide = ["#8a7f66", "#565045", "#38342c"]
 
-            // Draw far-to-near: depth-2 first, then depth-1.
-            if (v[1].visible) {
-              if (v[1].end) fillFace(2, colEnd[1])
-              if (v[1].left) fillQuad(wallQuad(2, -1), colSide[1])
-              if (v[1].right) fillQuad(wallQuad(2, 1), colSide[1])
-            }
-            if (v[0].visible) {
-              if (v[0].end) fillFace(1, colEnd[0])
-              if (v[0].left) fillQuad(wallQuad(1, -1), colSide[0])
-              if (v[0].right) fillQuad(wallQuad(1, 1), colSide[0])
+            // Far-to-near: depth-3, then 2, then 1.
+            for (var d = 3; d >= 1; d--) {
+              var slice = v[d - 1]
+              if (!slice.visible) continue
+              if (slice.end) fillFace(d, colEnd[d - 1])
+              if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
+              if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
             }
           }
 
           onWidthChanged: requestPaint()
           onHeightChanged: requestPaint()
-          // Trigger a repaint whenever position/facing/floor changes.
-          property var viewEpoch: root.view
-          onViewEpochChanged: requestPaint()
+          // root.pos gets a new object identity on every move/turn (unlike
+          // `view`, a readonly computed var whose binding never notifies),
+          // so this reliably repaints the scene each step.
+          property var repaintKey: root.pos
+          onRepaintKeyChanged: requestPaint()
           Component.onCompleted: requestPaint()
         }
 
@@ -292,34 +295,6 @@ Panel {
           font.family: Style.font.menuFamily
           font.bold: true
           font.pixelSize: 40
-        }
-
-        // Descend prompt: standing on the stairs shows the button; clicking
-        // it pixel-dissolves the screen into the next floor.
-        Rectangle {
-          id: descendBtn
-          visible: root.floor.nodes[root.pos.row][root.pos.col].feature === "down"
-            && !root.descending
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.bottom: parent.bottom
-          anchors.bottomMargin: 40
-          width: 120
-          height: 30
-          color: "#d0b040"
-          border.color: Color.menu.border
-          border.width: 2
-          Text {
-            anchors.centerIn: parent
-            text: "DESCEND"
-            color: "#1b1712"
-            font.family: Style.font.menuFamily
-            font.bold: true
-            font.pixelSize: 13
-          }
-          MouseArea {
-            anchors.fill: parent
-            onClicked: root.beginDescend()
-          }
         }
 
         // Directional arrows: ◀ ▶ turn, ▲ ▼ step forward/back, greyed by
@@ -359,7 +334,9 @@ Panel {
 
         // Descend button — appears when standing on the downstairs.
         Rectangle {
+          id: descendBtn
           visible: root.floor.nodes[root.pos.row][root.pos.col].feature === "down"
+            && !root.descending
           anchors.horizontalCenter: parent.horizontalCenter
           anchors.bottom: parent.bottom
           anchors.bottomMargin: 40
@@ -376,7 +353,7 @@ Panel {
             font.bold: true
             font.pixelSize: 13
           }
-          MouseArea { anchors.fill: parent; onClicked: root.descend() }
+          MouseArea { anchors.fill: parent; onClicked: root.beginDescend() }
         }
 
         // ---- Automap (toggleable; top-right corner) -------------------------

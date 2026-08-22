@@ -119,15 +119,15 @@ function hasWall(floor, r, c, d) {
   return d === 0 ? n.n : d === 1 ? n.e : d === 2 ? n.s : n.w
 }
 
-// Compute the 2-deep first-person view from pos within floor.
-// Returns depths [1, 2]; each depth:
-//   { left, right, end: bool wall slices, feature: node feature at that
-//     depth (for stairs glow), visible: false when depth is beyond a wall }
+// Compute the 3-deep first-person view from pos within floor.
+// Returns depths [1, 2, 3]; each:
+//   { left, right, end: bool wall flags, feature: node feature at that
+//     depth, visible: false when beyond an intervening end wall }
 function vista(floor, pos) {
   var out = []
   var row = pos.row, col = pos.col
   var aheadBlocked = false
-  for (var depth = 1; depth <= 2; depth++) {
+  for (var depth = 1; depth <= 3; depth++) {
     if (aheadBlocked) {
       out.push({ left: false, right: false, end: false, feature: "none", visible: false })
       continue
@@ -144,7 +144,6 @@ function vista(floor, pos) {
         ? floor.nodes[nr][nc].feature : "none",
       visible: true
     })
-    // Sightline stops beyond a wall directly ahead.
     if (out[out.length - 1].end) aheadBlocked = true
     else { row = nr; col = nc }
   }
