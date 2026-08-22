@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "b.omakon",
+  "name": "Dungeons of Omakon",
+  "version": "0.1.0",
+  "author": "Signal-Six",
+  "license": "MIT",
+  "description": "A first-person 16-bit dungeon crawler that lives in your bar. Click the widget to delve.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omakon",
+    "description": "Dungeons of Omakon — persistent dungeon crawler",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
