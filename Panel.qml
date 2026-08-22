@@ -3,12 +3,12 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
+import "Dungeon.js" as Dungeon
 
 // Dungeons of Omakon — game window.
-// Phase 2: full GUI frame. Directional arrows over the viewport, hand-slot
-// equip buttons flanking the HUD read-outs, spell + inventory popups, and a
-// toggleable automap. Maze data below is a DEBUG STUB — Phase 3's Dungeon.js
-// replaces it with real generation.
+// Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
+// pseudo-3D first-person view 2 nodes deep, with arrow-driven turn/move,
+// stairs overlays, and an explored-masked automap.
 Panel {
   id: root
   moduleName: "b.omakon"
@@ -39,35 +39,44 @@ Panel {
     popupMode = (popupMode === mode) ? "none" : mode
   }
 
-  // ---- Automap --------------------------------------------------------------
+  // ---- Floor state (Phase 4 persists this) -----------------------------------
   property bool automapOn: true
-  // Debug stub: 6x7, 1 = open node. Phase 3 fills this from Dungeon.js and
-  // masks it behind an explored Rooms mask.
-  property var stubMaze: [
-    [1,1,1,1,1,1,1],
-    [1,0,0,0,1,0,1],
-    [1,1,1,1,1,0,1],
-    [1,0,0,0,1,0,1],
-    [1,0,1,1,1,1,1],
-    [1,1,1,0,0,0,0]
-  ]
-  property int heroCol: 0
-  property int heroRow: 5
-  property int facing: 0               // 0=N 1=E 2=S 3=W
+  property int floorNum: 1
+  property var floor: Dungeon.generate((Math.random() * 0x7fffffff) | 0)
+  property var pos: ({ row: floor.start.row, col: floor.start.col, facing: 0 })
 
-  // Wall stubs for arrow greying: all open until Phase 3.
-  readonly property bool wallAhead: false
-  readonly property bool wallBehind: false
+  // Explored mask for the automap, keyed "r,c".
+  property var explored: ({})
+  Component.onCompleted: markExplored(pos.row, pos.col)
+
+  function markExplored(r, c) {
+    var key = r + "," + c
+    if (explored[key]) return
+    var next = {}
+    for (var k in explored) next[k] = true
+    next[key] = true
+    explored = next    // new object identity so the automap re-evaluates
+  }
+
+  readonly property var view: floor ? Dungeon.vista(floor, pos) : []
+  function wallAt(rel) { return Dungeon.hasWall(floor, pos.row, pos.col, (pos.facing + rel + 4) % 4) }
 
   function move(dir) {
-    // Placeholder movement inside the stub bounds, for arrow feedback.
-    var d = (facing + dir + 4) % 4
-    var dc = [0, 1, 0, -1][d]
-    var dr = [-1, 0, 1, 0][d]
-    var nc = heroCol + dc, nr = heroRow + dr
-    if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7 && stubMaze[nr][nc] === 1) {
-      heroCol = nc; heroRow = nr
+    var np = Dungeon.move(floor, pos, dir)
+    if (np.row !== pos.row || np.col !== pos.col) {
+      pos = np
+      markExplored(np.row, np.col)
     }
+  }
+  function turn(rel) { pos = Dungeon.turn(pos, rel) }
+
+  function descend() {
+    if (floor.nodes[pos.row][pos.col].feature !== "down") return
+    floorNum++
+    floor = Dungeon.generate((Math.random() * 0x7fffffff) | 0)
+    pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
+    explored = ({})
+    markExplored(pos.row, pos.col)
   }
 
   // ---- Window ---------------------------------------------------------------
@@ -148,7 +157,7 @@ Panel {
         }
       }
 
-      // ---- Viewport ---------------------------------------------------------
+      // ---- Viewport: pseudo-3D first-person render --------------------------
       Rectangle {
         id: viewport
         anchors.left: parent.left
@@ -156,23 +165,123 @@ Panel {
         anchors.top: titleBar.bottom
         anchors.bottom: hud.top
         anchors.margins: 8
-        color: "black"
+        color: "#05060a"           // deep-space overdraw guard
         border.color: Color.menu.border
         border.width: 2
         clip: true
 
-        Text {
-          anchors.centerIn: parent
-          text: "[ dungeon viewport ]"
-          color: Qt.darker(Color.menu.text, 1.6)
-          font.family: Style.font.menuFamily
-          font.pixelSize: 14
+        readonly property color wallNear: "#8a7f66"
+        readonly property color wallFar:  "#565045"
+        readonly property color endNear:  "#6e6552"
+        readonly property color endFar:   "#3c3830"
+        readonly property color voidCol:  "#0a0b10"
+
+        // Sky (ceiling) and floor slabs.
+        Rectangle { anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; height: parent.height / 2
+                    color: "#11131c" }
+        Rectangle { anchors.left: parent.left; anchors.right: parent.right
+                    anchors.bottom: parent.bottom; height: parent.height / 2
+                    color: "#1b1712" }
+
+        // Depth-2 slices drawn first (behind depth-1). Rects are clipped by
+        // the depth-1 trapezoid footprint so the corridor reads correctly.
+        Item {
+          anchors.fill: parent
+          visible: root.view.length === 2 && root.view[1].visible
+
+          // End wall at depth 2
+          Rectangle {
+            visible: root.view[1].end
+            anchors.centerIn: parent
+            width: parent.width * 0.30
+            height: parent.height * 0.30
+            color: viewport.endFar
+          }
+          // Side walls of the depth-2 corridor cell
+          Rectangle {
+            visible: root.view[1].left
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.20
+            height: parent.height * 0.55
+            color: viewport.wallFar
+          }
+          Rectangle {
+            visible: root.view[1].right
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.20
+            height: parent.height * 0.55
+            color: viewport.wallFar
+          }
         }
 
-        // Directional arrows. Pixel-style glyphs; Phase 3 feeds wallAhead/
-        // wallBehind from the real maze so blocked moves grey out.
+        // Depth-1 slices.
+        Item {
+          anchors.fill: parent
+          visible: root.view.length === 2 && root.view[0].visible
+
+          Rectangle {
+            visible: root.view[0].end
+            anchors.centerIn: parent
+            width: parent.width * 0.62
+            height: parent.height * 0.62
+            color: viewport.endNear
+          }
+          Rectangle {
+            visible: root.view[0].left
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.26
+            height: parent.height
+            color: viewport.wallNear
+          }
+          Rectangle {
+            visible: root.view[0].right
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.26
+            height: parent.height
+            color: viewport.wallNear
+          }
+        }
+
+        // Feature glyph centered in the view: stairs up/down or item hints.
+        Text {
+          anchors.centerIn: parent
+          visible: root.floor.nodes[root.pos.row][root.pos.col].feature !== "none"
+            || (root.view.length === 2 && root.view[0].feature !== "none")
+          text: {
+            var here = root.floor.nodes[root.pos.row][root.pos.col].feature
+            var ahead = root.view.length === 2 ? root.view[0].feature : "none"
+            var feat = (here !== "none") ? here : ahead
+            if (feat === "down") return "⬇"
+            if (feat === "up") return "⬆"
+            return "·"
+          }
+          color: text === "⬇" ? "#d0b040" : Color.menu.text
+          font.family: Style.font.menuFamily
+          font.bold: true
+          font.pixelSize: 40
+        }
+
+        // Floor number tag, top-left of the viewport.
+        Text {
+          anchors.left: parent.left
+          anchors.top: parent.top
+          anchors.margins: 6
+          text: "FLOOR " + root.floorNum
+          color: Qt.darker(Color.menu.text, 1.6)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 10
+        }
+
+        // Directional arrows: ◀ ▶ turn, ▲ ▼ step forward/back, greyed by
+        // real wall state from Dungeon.hasWall.
         component Arrow: Text {
-          property int dir: 0          // 0 forward, 1 right, 2 back, 3 left
+          property int dir: 0          // 0 fwd, 1 right, 2 back, 3 left
+          property bool turnOnly: false
           property bool blocked: false
           font.family: Style.font.menuFamily
           font.pixelSize: 22
@@ -180,39 +289,50 @@ Panel {
           MouseArea {
             anchors.fill: parent
             enabled: !blocked
-            onClicked: root.move(parent.dir)
+            onClicked: {
+              if (parent.dir === 3) root.turn(-1)
+              else if (parent.dir === 1) root.turn(1)
+              else if (parent.dir === 0) root.move(0)
+              else root.move(2)
+            }
           }
         }
 
-        Arrow { // forward
-          dir: 0
-          text: "▲"
-          blocked: root.wallAhead
+        Arrow { dir: 0; text: "▲"
+          blocked: root.wallAt(0)
           anchors.horizontalCenter: parent.horizontalCenter
-          anchors.top: parent.top
-          anchors.topMargin: 8
-        }
-        Arrow { // left turn/strafe
-          dir: 3
-          text: "◀"
+          anchors.top: parent.top; anchors.topMargin: 8 }
+        Arrow { dir: 3; text: "◀"
           anchors.verticalCenter: parent.verticalCenter
-          anchors.left: parent.left
-          anchors.leftMargin: 8
-        }
-        Arrow { // right
-          dir: 1
-          text: "▶"
+          anchors.left: parent.left; anchors.leftMargin: 8 }
+        Arrow { dir: 1; text: "▶"
           anchors.verticalCenter: parent.verticalCenter
-          anchors.right: parent.right
-          anchors.rightMargin: 8
-        }
-        Arrow { // back
-          dir: 2
-          text: "▼"
-          blocked: root.wallBehind
+          anchors.right: parent.right; anchors.rightMargin: 8 }
+        Arrow { dir: 2; text: "▼"
+          blocked: root.wallAt(2)
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom; anchors.bottomMargin: 8 }
+
+        // Descend button — appears when standing on the downstairs.
+        Rectangle {
+          visible: root.floor.nodes[root.pos.row][root.pos.col].feature === "down"
           anchors.horizontalCenter: parent.horizontalCenter
           anchors.bottom: parent.bottom
-          anchors.bottomMargin: 8
+          anchors.bottomMargin: 40
+          width: 120
+          height: 30
+          color: "#d0b040"
+          border.color: Color.menu.border
+          border.width: 2
+          Text {
+            anchors.centerIn: parent
+            text: "DESCEND"
+            color: "#1b1712"
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 13
+          }
+          MouseArea { anchors.fill: parent; onClicked: root.descend() }
         }
 
         // ---- Automap (toggleable; top-right corner) -------------------------
@@ -240,21 +360,20 @@ Panel {
               Rectangle {
                 property int c: index % 7
                 property int r: Math.floor(index / 7)
-                width: 10
-                height: 10
-                color: (c === root.heroCol && r === root.heroRow)
-                  ? "#e0c040"                                   // hero
-                  : (root.stubMaze[r][c] === 1
-                      ? Qt.darker(Color.menu.text, 1.8)         // open node
-                      : "black")                                 // void
+                property bool seen: root.explored[r + "," + c] === true
+                property string feat: root.floor.nodes[r][c].feature
+                width: 12
+                height: 12
+                color: !seen ? "black"
+                  : (c === root.pos.col && r === root.pos.row) ? "#e0c040"
+                  : feat === "down" ? "#b09030"
+                  : "#5b5548"
                 border.color: Qt.darker(Color.menu.border, 1.5)
                 border.width: 1
               }
             }
           }
         }
-
-        // (Map toggle now lives in the HUD strip as a permanent button.)
       }
 
       // ---- HUD strip ---------------------------------------------------------
