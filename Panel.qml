@@ -252,12 +252,19 @@ Panel {
             var colSide = ["#8a7f66", "#565045", "#38342c"]
 
             // Far-to-near: depth-3, then 2, then 1.
+            //
+            // Geometry: cell(d)'s side walls span face(d-1) -> face(d)
+            // (correct corridor slabs). cell(d).end is the wall you hit when
+            // stepping INTO cell(d) — it blocks at the plane BETWEEN d-1 and
+            // d, so it must be drawn as the face(d-1) rectangle (the full
+            // face of the previous corridor cell), not face(d). That was the
+            // "false walls" mismatch: end blocks were drawn one cell deep.
             for (var d = 3; d >= 1; d--) {
               var slice = v[d - 1]
               if (!slice.visible) continue
-              if (slice.end) fillFace(d, colEnd[d - 1])
               if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
               if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
+              if (slice.end) fillFace(d - 1, colEnd[d - 1])
             }
           }
 
