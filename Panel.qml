@@ -42,8 +42,23 @@ Panel {
   // ---- Floor state (Phase 4 persists this) -----------------------------------
   property bool automapOn: true
   property int floorNum: 1
+  property bool descending: false       // true while dissolve anim runs
   property var floor: Dungeon.generate((Math.random() * 0x7fffffff) | 0)
   property var pos: ({ row: floor.start.row, col: floor.start.col, facing: 0 })
+
+  function beginDescend() {
+    if (floor.nodes[pos.row][pos.col].feature !== "down" || descending) return
+    descending = true               // dissolve layer activates; step resets there
+  }
+
+  function completeDescend() {
+    floorNum++
+    floor = Dungeon.generate((Math.random() * 0x7fffffff) | 0)
+    pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
+    explored = ({})
+    markExplored(pos.row, pos.col)
+    descending = false
+  }
 
   // Explored mask for the automap, keyed "r,c".
   property var explored: ({})
@@ -69,15 +84,6 @@ Panel {
     }
   }
   function turn(rel) { pos = Dungeon.turn(pos, rel) }
-
-  function descend() {
-    if (floor.nodes[pos.row][pos.col].feature !== "down") return
-    floorNum++
-    floor = Dungeon.generate((Math.random() * 0x7fffffff) | 0)
-    pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
-    explored = ({})
-    markExplored(pos.row, pos.col)
-  }
 
   // ---- Window ---------------------------------------------------------------
   PanelWindow {
@@ -184,86 +190,82 @@ Panel {
                     anchors.bottom: parent.bottom; height: parent.height / 2
                     color: "#1b1712" }
 
-        // Depth-2 slices drawn first (behind depth-1). Rects are clipped by
-        // the depth-1 trapezoid footprint so the corridor reads correctly.
-        Item {
+        // Pseudo-3D cell-forward renderer. The view is composed of trapezoid
+        // wall Ungl panels whose footprints match the perspective of a
+        // 2-node-deep corridor; panels only render where the maze data says
+        // there is a wall, so what you see IS the floor plan.
+        //
+        // Geometry: forward cell face = full viewport. Depth-1 end wall is a
+        // centered rect 0.62w x 0.62h covering 0.19->0.81 on both axes. The
+        // depth-1 side corridors (when that cell's left/right is OPEN) show
+        // through the strips left/right of the end rect; when closed, side
+        // wall trapezoids fill frame->end edges. Same construction repeats
+        // between the end rect (0.62) and depth-2 rect (0.30).
+        Canvas {
+          id: scene3d
           anchors.fill: parent
-          visible: root.view.length === 2 && root.view[1].visible
 
-          // End wall at depth 2
-          Rectangle {
-            visible: root.view[1].end
-            anchors.centerIn: parent
-            width: parent.width * 0.30
-            height: parent.height * 0.30
-            color: viewport.endFar
-          }
-          // Side walls of the depth-2 corridor cell
-          Rectangle {
-            visible: root.view[1].left
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.20
-            height: parent.height * 0.55
-            color: viewport.wallFar
-          }
-          Rectangle {
-            visible: root.view[1].right
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.20
-            height: parent.height * 0.55
-            color: viewport.wallFar
-          }
-        }
+          onPaint: {
+            var ctx = getContext("2d")
+            var W = width, H = height
+            var W2 = W / 2, H2 = H / 2
 
-        // Depth-1 slices.
-        Item {
-          anchors.fill: parent
-          visible: root.view.length === 2 && root.view[0].visible
+            // face geometry at depth d (0 = current cell, 1, 2): half-size of
+            // the projected square face, centered.
+            var half = [Math.min(W2, H2) * 1.0, Math.min(W2, H2) * 0.62, Math.min(W2, H2) * 0.30]
 
-          Rectangle {
-            visible: root.view[0].end
-            anchors.centerIn: parent
-            width: parent.width * 0.62
-            height: parent.height * 0.62
-            color: viewport.endNear
-          }
-          Rectangle {
-            visible: root.view[0].left
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.26
-            height: parent.height
-            color: viewport.wallNear
-          }
-          Rectangle {
-            visible: root.view[0].right
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.26
-            height: parent.height
-            color: viewport.wallNear
-          }
-        }
+            function faceRect(d) {
+              return { x: W2 - half[d], y: H2 - half[d], w: half[d] * 2, h: half[d] * 2 }
+            }
 
-        // Feature glyph centered in the view: stairs up/down or item hints.
-        Text {
-          anchors.centerIn: parent
-          visible: root.floor.nodes[root.pos.row][root.pos.col].feature !== "none"
-            || (root.view.length === 2 && root.view[0].feature !== "none")
-          text: {
-            var here = root.floor.nodes[root.pos.row][root.pos.col].feature
-            var ahead = root.view.length === 2 ? root.view[0].feature : "none"
-            var feat = (here !== "none") ? here : ahead
-            if (feat === "down") return "⬇"
-            if (feat === "up") return "⬆"
-            return "·"
+            function wallQuad(d, side) { // side: -1 left, +1 right; d = cell depth
+              var outer = faceRect(d - 1), inner = faceRect(d)
+              if (side < 0)
+                return [ [outer.x, outer.y], [inner.x, inner.y],
+                         [inner.x, inner.y + inner.h], [outer.x, outer.y + outer.h] ]
+              return [ [outer.x + outer.w, outer.y], [inner.x + inner.w, inner.y],
+                       [inner.x + inner.w, inner.y + inner.h], [outer.x + outer.w, outer.y + outer.h] ]
+            }
+
+            function fillQuad(pts, color) {
+              ctx.beginPath()
+              ctx.moveTo(pts[0][0], pts[0][1])
+              for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1])
+              ctx.closePath()
+              ctx.fillStyle = color
+              ctx.fill()
+            }
+            function fillFace(d, color) {
+              var r = faceRect(d)
+              ctx.fillStyle = color
+              ctx.fillRect(r.x, r.y, r.w, r.h)
+            }
+
+            var v = root.view
+            if (v.length !== 2) return
+
+            var colEnd = ["#6e6552", "#46413a"]   // depth-1, depth-2 end walls
+            var colSide = ["#8a7f66", "#565045"]  // depth-1, depth-2 side walls
+
+            // Draw far-to-near: depth-2 first, then depth-1.
+            if (v[1].visible) {
+              if (v[1].end) fillFace(2, colEnd[1])
+              if (v[1].left) fillQuad(wallQuad(2, -1), colSide[1])
+              if (v[1].right) fillQuad(wallQuad(2, 1), colSide[1])
+            }
+            if (v[0].visible) {
+              if (v[0].end) fillFace(1, colEnd[0])
+              if (v[0].left) fillQuad(wallQuad(1, -1), colSide[0])
+              if (v[0].right) fillQuad(wallQuad(1, 1), colSide[0])
+            }
           }
-          color: text === "⬇" ? "#d0b040" : Color.menu.text
-          font.family: Style.font.menuFamily
-          font.bold: true
-          font.pixelSize: 40
+
+          onWidthChanged: requestPaint()
+          onHeightChanged: requestPaint()
+          // Trigger a repaint whenever position/facing/floor changes.
+          property var viewEpoch: root.view
+          onViewEpochChanged: requestPaint()
+          Component.onCompleted: requestPaint()
         }
 
         // Floor number tag, top-left of the viewport.
@@ -277,11 +279,53 @@ Panel {
           font.pixelSize: 10
         }
 
+        // Stairs-down glyph when standing on (or directly facing) the
+        // downstairs node. No ascent glyph: there is no going back up.
+        Text {
+          anchors.centerIn: parent
+          visible: {
+            if (root.floor.nodes[root.pos.row][root.pos.col].feature === "down") return true
+            return root.view.length === 2 && root.view[0].feature === "down" && !root.view[0].end
+          }
+          text: "⬇"
+          color: "#d0b040"
+          font.family: Style.font.menuFamily
+          font.bold: true
+          font.pixelSize: 40
+        }
+
+        // Descend prompt: standing on the stairs shows the button; clicking
+        // it pixel-dissolves the screen into the next floor.
+        Rectangle {
+          id: descendBtn
+          visible: root.floor.nodes[root.pos.row][root.pos.col].feature === "down"
+            && !root.descending
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: 40
+          width: 120
+          height: 30
+          color: "#d0b040"
+          border.color: Color.menu.border
+          border.width: 2
+          Text {
+            anchors.centerIn: parent
+            text: "DESCEND"
+            color: "#1b1712"
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 13
+          }
+          MouseArea {
+            anchors.fill: parent
+            onClicked: root.beginDescend()
+          }
+        }
+
         // Directional arrows: ◀ ▶ turn, ▲ ▼ step forward/back, greyed by
         // real wall state from Dungeon.hasWall.
         component Arrow: Text {
           property int dir: 0          // 0 fwd, 1 right, 2 back, 3 left
-          property bool turnOnly: false
           property bool blocked: false
           font.family: Style.font.menuFamily
           font.pixelSize: 22
@@ -357,21 +401,85 @@ Panel {
 
             Repeater {
               model: 42
-              Rectangle {
+              Item {
                 property int c: index % 7
                 property int r: Math.floor(index / 7)
                 property bool seen: root.explored[r + "," + c] === true
+                property bool hero: c === root.pos.col && r === root.pos.row
                 property string feat: root.floor.nodes[r][c].feature
                 width: 12
                 height: 12
-                color: !seen ? "black"
-                  : (c === root.pos.col && r === root.pos.row) ? "#e0c040"
-                  : feat === "down" ? "#b09030"
-                  : "#5b5548"
-                border.color: Qt.darker(Color.menu.border, 1.5)
-                border.width: 1
+
+                Rectangle {
+                  anchors.fill: parent
+                  color: !seen ? "black"
+                    : hero ? "#e0c040"
+                    : feat === "down" ? "#b09030"
+                    : "#5b5548"
+                  border.color: Qt.darker(Color.menu.border, 1.5)
+                  border.width: 1
+                }
+                // Facing arrow over the hero tile.
+                Text {
+                  anchors.centerIn: parent
+                  visible: hero
+                  text: ["▲", "▶", "▼", "◀"][root.pos.facing]
+                  color: "#1b1712"
+                  font.family: Style.font.menuFamily
+                  font.bold: true
+                  font.pixelSize: 9
+                }
               }
             }
+          }
+        }
+        // ---- Pixel-dissolve transition into the next floor -------------------
+        // Active while root.descending: a 26x20 grid of black pixels whose
+        // opacity animates 0 -> 1 in pseudo-random order over ~500ms, the
+        // floor state swaps at full dissolve, then the pixels fade back out.
+        Item {
+          id: dissolveLayer
+          anchors.fill: parent
+          visible: root.descending
+          onVisibleChanged: if (visible) step = 0
+
+          property int step: 0
+          readonly property int cells: 26 * 20
+
+          Repeater {
+            model: dissolveLayer.visible ? dissolveLayer.cells : 0
+            Rectangle {
+              property int cx: index % 26
+              property int cy: Math.floor(index / 26)
+              // Stable pseudo-random order key per cell.
+              property real ord: ((index * 137 + Math.floor(index / 7) * 61) % 521) / 521.0
+              x: cx * (dissolveLayer.width / 26)
+              y: cy * (dissolveLayer.height / 20)
+              width: Math.ceil(dissolveLayer.width / 26) + 1
+              height: Math.ceil(dissolveLayer.height / 20) + 1
+              color: "#05060a"
+              opacity: (dissolveLayer.step - ord * 520) > 0 ? 1 : 0
+            }
+          }
+
+          Timer {
+            interval: 16
+            repeat: true
+            running: root.descending
+            onTriggered: {
+              dissolveLayer.step += 20
+              if (dissolveLayer.step >= 560) {
+                running = false
+                root.completeDescend()
+                fadeOut.start()
+              }
+            }
+          }
+          // Brief fade-out after the swap: drop the layer via a frame delay.
+          Timer {
+            id: fadeOut
+            interval: 32
+            onTriggered: { /* root.descending cleared in completeDescend */ }
           }
         }
       }
