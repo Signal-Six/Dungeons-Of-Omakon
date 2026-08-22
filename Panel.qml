@@ -214,11 +214,16 @@ Panel {
             var W2 = W / 2, H2 = H / 2
 
             // face geometry at depth d (0 = current cell, 1..3): half-size of
-            // the projected square face, centered.
+            // the projected square face, centered. Depth 0 is the FULL
+            // viewport (not a centered square) so side-wall quads anchor to
+            // the real screen edges — otherwise uncovered sky/floor gutters
+            // at the left/right edges read as open corridors you can walk
+            // into (the "false walls" report).
             var base = Math.min(W2, H2)
             var half = [base * 1.0, base * 0.62, base * 0.38, base * 0.22]
 
             function faceRect(d) {
+              if (d === 0) return { x: 0, y: 0, w: W, h: H }
               return { x: W2 - half[d], y: H2 - half[d], w: half[d] * 2, h: half[d] * 2 }
             }
 
@@ -395,13 +400,35 @@ Panel {
                 height: 12
 
                 Rectangle {
-                  anchors.fill: parent
+                  anchors.fill: parent  // the node's floor tile
                   color: !seen ? "black"
                     : hero ? "#e0c040"
                     : feat === "down" ? "#b09030"
                     : "#5b5548"
                   border.color: Qt.darker(Color.menu.border, 1.5)
                   border.width: 1
+                }
+                // Per-edge wall lines, overlaid on the tile so the automap
+                // doubles as a debugging truth table for the 3D render.
+                Rectangle { // N
+                  visible: seen && root.floor.nodes[r][c].n
+                  anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                  height: 2; color: "#f0e0c0"
+                }
+                Rectangle { // E
+                  visible: seen && root.floor.nodes[r][c].e
+                  anchors.top: parent.top; anchors.right: parent.right; anchors.bottom: parent.bottom
+                  width: 2; color: "#f0e0c0"
+                }
+                Rectangle { // S
+                  visible: seen && root.floor.nodes[r][c].s
+                  anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+                  height: 2; color: "#f0e0c0"
+                }
+                Rectangle { // W
+                  visible: seen && root.floor.nodes[r][c].w
+                  anchors.top: parent.top; anchors.left: parent.left; anchors.bottom: parent.bottom
+                  width: 2; color: "#f0e0c0"
                 }
                 // Facing arrow over the hero tile.
                 Text {
