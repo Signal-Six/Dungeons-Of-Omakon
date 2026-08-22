@@ -254,20 +254,7 @@ Panel {
           }
         }
 
-        // Automap toggle chip (small, bottom-left of the viewport).
-        Text {
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          anchors.margins: 6
-          text: root.automapOn ? "MAP" : "   "
-          color: root.automapOn ? Color.menu.text : Qt.darker(Color.menu.text, 2.2)
-          font.family: Style.font.menuFamily
-          font.pixelSize: 10
-          MouseArea {
-            anchors.fill: parent
-            onClicked: root.automapOn = !root.automapOn
-          }
-        }
+        // (Map toggle now lives in the HUD strip as a permanent button.)
       }
 
       // ---- HUD strip ---------------------------------------------------------
@@ -285,6 +272,36 @@ Panel {
         Row {
           anchors.centerIn: parent
           spacing: 14
+
+          // Map toggle — permanently visible, leftmost in the HUD.
+          Column {
+            spacing: 2
+            Rectangle {
+              width: 44
+              height: 40
+              color: root.automapOn ? Color.menu.selectedBackground : "transparent"
+              border.color: Color.menu.border
+              border.width: 2
+              Text {
+                anchors.centerIn: parent
+                text: "▦"
+                color: root.automapOn ? Color.menu.text : Qt.darker(Color.menu.text, 2.0)
+                font.family: Style.font.menuFamily
+                font.pixelSize: 18
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: root.automapOn = !root.automapOn
+              }
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: "MAP"
+              color: Qt.darker(Color.menu.text, 1.8)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 9
+            }
+          }
 
           // Left hand — shield slot
           Column {
