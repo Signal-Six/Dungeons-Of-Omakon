@@ -34,6 +34,9 @@ Panel {
   property string runName: ""
   property string runStarted: ""
   property int heroLevel: 1
+  property var heroStats: ({ str: 4, dex: 4, con: 4, int: 4, wil: 4, unspent: 0 })
+  property string lastLevelUpToast: ""
+  property var heroEffects: []
   property int heroXp: 0
   property string pendingNewName: ""
 
