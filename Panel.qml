@@ -537,23 +537,19 @@ Panel {
           }
 
           Timer {
+            id: dissolveTimer
             interval: 16
             repeat: true
             running: root.descending
             onTriggered: {
               dissolveLayer.step += 20
-              if (dissolveLayer.step >= 560) {
-                running = false
-                root.completeDescend()
-                fadeOut.start()
-              }
+              if (dissolveLayer.step >= 560) root.completeDescend()
+              // completeDescend sets descending = false; the running binding
+              // then evaluates to false on its own (never assign `running`
+              // imperatively — it clobbers the binding and the next
+              // descent's dissolve never restarts, leaving root.descending
+              // stuck true, which hid the DESCEND button the second time).
             }
-          }
-          // Brief fade-out after the swap: drop the layer via a frame delay.
-          Timer {
-            id: fadeOut
-            interval: 32
-            onTriggered: { /* root.descending cleared in completeDescend */ }
           }
         }
       }
