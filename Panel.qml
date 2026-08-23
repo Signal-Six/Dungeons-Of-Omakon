@@ -268,12 +268,33 @@ Panel {
             // Perception rules:
             //   * cell(d).left/right: wall on that cell's side edge → slab
             //     spanning face(d-1) -> face(d).
-            //   * An OPEN side at depth d>=2 also fills the recess with a
-            //     panel one plane deeper (face(d+1)) so the branch reads as a
-            //     dark corridor mouth, not a void.
+            //   * An OPEN side at depth d shows its side-passage mouth. The
+            //     recess panel (back wall of that passage) is only drawn
+            //     when the view further in that direction would otherwise
+            //     leave naked background — i.e. when the slice at depth d+1
+            //     is not visible or is itself open-ended on that side.
+            //     When the corridor continues, the opening reads naturally
+            //     from the side slabs of the continuing cells.
             //   * cell(d).end: wall on that cell's far edge → face(d).
-            //   * wallAt(0): forward edge of YOUR cell is blocked — paint the
-            //     full viewport (nose against the wall).
+            //   * wallAt(0): forward edge of YOUR cell is blocked → whole
+            //     viewport (nose against the wall).
+
+            // Internal-corner patches, painted FIRST so the depth loop can
+            // overdraw them. When your own cell's side is open (you're
+            // standing at an L-junction with a passage beside you), the side
+            // slab for depth 0 is never drawn and sky/floor leaks through;
+            // patch it with a full-height panel at the passage's back wall.
+            if (!root.wallAt(3)) { // left relative
+              var fL = faceRect(1)
+              ctx.fillStyle = colEnd[0]
+              ctx.fillRect(0, fL.y, fL.x, fL.h)
+            }
+            if (!root.wallAt(1)) { // right relative
+              var fR = faceRect(1)
+              ctx.fillStyle = colEnd[0]
+              ctx.fillRect(fR.x + fR.w, fR.y, W - (fR.x + fR.w), fR.h)
+            }
+
             for (var d = 4; d >= 1; d--) {
               var slice = v[d - 1]
               if (!slice.visible) continue
@@ -281,13 +302,15 @@ Panel {
               if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
               if (slice.end) fillFace(d, colEnd[d - 1])
 
+              var nextSlice = (d < 4) ? v[d] : null
+              var nextVisible = nextSlice && nextSlice.visible
               if (d + 1 <= 4) {
-                if (!slice.left) {
+                if (!slice.left && (!nextVisible || nextSlice.left === false)) {
                   var inL = faceRect(d + 1), outL = faceRect(d)
                   ctx.fillStyle = colEnd[Math.min(d, 3)]
                   ctx.fillRect(inL.x, inL.y, outL.x - inL.x, inL.h)
                 }
-                if (!slice.right) {
+                if (!slice.right && (!nextVisible || nextSlice.right === false)) {
                   var inR = faceRect(d + 1), outR = faceRect(d)
                   ctx.fillStyle = colEnd[Math.min(d, 3)]
                   ctx.fillRect(inR.x + inR.w, inR.y,
