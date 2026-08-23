@@ -3,7 +3,9 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
+import Quickshell.Io
 import "Dungeon.js" as Dungeon
+import "Save.js" as Save
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -22,6 +24,29 @@ Panel {
   function refresh() {}
   function openFromHotkey() { root.open() }
 
+  // ---- Phase 4: run lifecycle ----------------------------------------------
+  // mode: "loading" -> "menu" (no active run) | "game" (run live) | "archive"
+  //       | "newgame" (name entry) | "dead" (death screen)
+  property string mode: "loading"
+  property var archive: []
+  property string runName: ""
+  property string runStarted: ""
+  property int heroLevel: 1
+  property int heroXp: 0
+  property string pendingNewName: ""
+
+  function open() {
+    if (mode === "loading") bootLoad()
+    root.controller.show()
+  }
+  function toggle() { opened ? close() : open() }
+  // Panel base provides controller; override its open-close path via
+  // function shadowing so close saves.
+  function close() {
+    if (mode === "game") saveRun()
+    root.controller.hide()
+  }
+
   // ---- Character (Phase 4 binds to the save file) -------------------------
   property int heroHp: 20
   property int heroHpMax: 20
@@ -39,11 +64,12 @@ Panel {
     popupMode = (popupMode === mode) ? "none" : mode
   }
 
-  // ---- Floor state (Phase 4 persists this) -----------------------------------
+  // ---- Floor state (persisted via Save.js / keyring) -----------------------
   property bool automapOn: true
   property int floorNum: 1
+  property int floorSeed: ((Math.random() * 0x7fffffff) | 0)
   property bool descending: false       // true while dissolve anim runs
-  property var floor: Dungeon.generate((Math.random() * 0x7fffffff) | 0)
+  property var floor: Dungeon.generate(floorSeed)
   property var pos: ({ row: floor.start.row, col: floor.start.col, facing: 0 })
 
   function beginDescend() {
@@ -53,11 +79,160 @@ Panel {
 
   function completeDescend() {
     floorNum++
-    floor = Dungeon.generate((Math.random() * 0x7fffffff) | 0)
+    floorSeed = (Math.random() * 0x7fffffff) | 0
+    floor = Dungeon.generate(floorSeed)
     pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
     explored = ({})
     markExplored(pos.row, pos.col)
     descending = false
+    saveRun()
+  }
+
+  // ---- Keyring I/O -------------------------------------------------------------
+  // secret-tool shells via bash; text goes through a temp file in
+  // XDG_RUNTIME_DIR (secret-tool reads stdin to EOF).
+  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
+  property string ioTempPath: ""
+  property string ioText: ""
+  property string ioField: ""
+
+  function newTempPath() {
+    return runtimeDir + "/omakon-"
+      + Date.now().toString(36) + "-"
+      + Math.floor(Math.random() * 0x100000000).toString(36) + ".json"
+  }
+
+  Process {
+    id: ioProc
+    onExited: function(exitCode) { root.ioFinished(exitCode) }
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.ioStdout(String(text || ""))
+    }
+  }
+
+  property string ioStdoutText: ""
+
+  function ioFinished(exitCode) {
+    if (ioField === "boot_run") {
+      var run = Save.parseRun(ioStdoutText)
+      if (run) { applyRun(run); mode = "game" }
+      else mode = "menu"
+      ioField = ""
+    } else if (ioField === "archive_load") {
+      archive = Save.parseArchive(ioStdoutText)
+      ioField = ""
+    }
+    // saves have no completion handling needs
+  }
+
+  function ioStdout(t) { ioStdoutText = t }
+
+  function bootLoad() {
+    ioField = "boot_run"
+    ioStdoutText = ""
+    ioProc.command = ["bash", "-c", Save.loadCmd("run")]
+    ioProc.running = true
+  }
+
+  function loadArchive() {
+    ioField = "archive_load"
+    ioStdoutText = ""
+    ioProc.command = ["bash", "-c", Save.loadCmd("archive")]
+    ioProc.running = true
+  }
+
+  function saveRun() {
+    if (mode !== "game") return
+    var state = currentState()
+    var text = Save.serializeRun(state)
+    ioText = text
+    ioTempPath = newTempPath()
+    ioField = "run_save"
+    ioProc.command = ["bash", "-c",
+      "printf '%s' " + JSON.stringify(text) + " > " + ioTempPath + " && "
+      + Save.storeScript("run")]
+    ioProc.running = true
+  }
+
+  function saveArchiveEntry(entry) {
+    var a = Save.appendArchive(archive, entry)
+    archive = a
+    var text = JSON.stringify(a)
+    ioTempPath = newTempPath()
+    ioField = "archive_save"
+    ioProc.command = ["bash", "-c",
+      "printf '%s' " + JSON.stringify(text) + " > " + ioTempPath + " && "
+      + Save.storeScript("archive")]
+    ioProc.running = true
+  }
+
+  function currentState() {
+    return {
+      name: runName, started: runStarted,
+      hp: heroHp, hpMax: heroHpMax, mp: heroMp, mpMax: heroMpMax,
+      level: heroLevel, xp: heroXp,
+      leftHand: leftHand, rightHand: rightHand,
+      pack: pack, spells: spells,
+      floorNum: floorNum, seed: floorSeed,
+      pos: pos, explored: explored
+    }
+  }
+
+  function applyRun(run) {
+    runName = run.name || "Hero"
+    runStarted = run.started || ""
+    heroHp = run.hp; heroHpMax = run.hpMax
+    heroMp = run.mp; heroMpMax = run.mpMax
+    heroLevel = run.level || 1; heroXp = run.xp || 0
+    leftHand = run.leftHand || null
+    rightHand = run.rightHand || ({ icon: "†", name: "Rusty Sword" })
+    pack = run.pack || (new Array(12)).fill(null)
+    spells = run.spells || []
+    floorNum = run.floorNum || 1
+    floorSeed = run.seed
+    floor = Dungeon.generate(floorSeed)
+    pos = run.pos || ({ row: floor.start.row, col: floor.start.col, facing: 0 })
+    explored = run.explored || ({})
+    markExplored(pos.row, pos.col)
+  }
+
+  // ---- Run lifecycle transitions ----------------------------------------------
+  function startNewGame() { mode = "newgame"; pendingNewName = "" }
+
+  function confirmNewGame(name) {
+    name = ("" + name).trim(); if (name === "") return
+    runName = name
+    runStarted = Qt.formatDate(new Date(), "yyyy-MM-dd")
+    heroHp = 20; heroHpMax = 20; heroMp = 8; heroMpMax = 8
+    heroLevel = 1; heroXp = 0
+    leftHand = null
+    rightHand = ({ icon: "†", name: "Rusty Sword" })
+    pack = (new Array(12)).fill(null)
+    spells = []
+    floorNum = 1
+    floorSeed = (Math.random() * 0x7fffffff) | 0
+    floor = Dungeon.generate(floorSeed)
+    pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
+    explored = ({})
+    markExplored(pos.row, pos.col)
+    mode = "game"
+    saveRun()
+  }
+
+  function showArchive() { loadArchive(); mode = "archive" }
+
+  function die() {
+    // Permadeath: archive the run, clear the active run, bump to menu.
+    saveArchiveEntry({
+      name: runName, started: runStarted,
+      floor: floorNum, level: heroLevel,
+      score: Save.computeScore(currentState())
+    })
+    ioField = "run_clear"
+    ioProc.command = ["bash", "-c", Save.clearScript("run")]
+    ioProc.running = true
+    mode = "dead"
   }
 
   // Explored mask for the automap, keyed "r,c".
@@ -141,7 +316,12 @@ Panel {
 
       Keys.onEscapePressed: {
         if (root.popupMode !== "none") root.popupMode = "none"
-        else root.close()
+        else if (root.mode === "menu") root.close()
+        else root.close()      // close always saves in game mode
+      }
+
+      Component.onCompleted: {
+        if (root.mode === "loading") root.bootLoad()
       }
 
       // ---- Title strip ------------------------------------------------------
@@ -182,6 +362,7 @@ Panel {
       // ---- Viewport: pseudo-3D first-person render --------------------------
       Rectangle {
         id: viewport
+        visible: root.mode === "game"
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: titleBar.bottom
@@ -554,9 +735,210 @@ Panel {
         }
       }
 
-      // ---- HUD strip ---------------------------------------------------------
+      // ---- Mode overlay screens (Phase 4) -----------------------------------
+      Rectangle {
+        anchors.fill: parent
+        anchors.topMargin: 28
+        visible: root.mode === "menu" || root.mode === "newgame"
+          || root.mode === "archive" || root.mode === "dead" || root.mode === "loading"
+        color: Color.menu.background
+        border.color: Color.menu.border
+        border.width: 2
+        z: 20
+
+        // MENU
+        Column {
+          visible: root.mode === "menu"
+          anchors.centerIn: parent
+          spacing: 22
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "DUNGEONS OF OMAKON"
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 18
+          }
+          Repeater {
+            model: [
+              { label: "NEW GAME", act: "newgame" },
+              { label: "ARCHIVE", act: "archive" }
+            ]
+            Rectangle {
+              property var m: modelData
+              width: 160; height: 34
+              color: Color.menu.selectedBackground
+              border.color: Color.menu.border
+              border.width: 2
+              anchors.horizontalCenter: parent.horizontalCenter
+              Text {
+                anchors.centerIn: parent
+                text: m.label
+                color: Color.menu.text
+                font.family: Style.font.menuFamily
+                font.bold: true
+                font.pixelSize: 13
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                  if (m.act === "newgame") root.startNewGame()
+                  else root.showArchive()
+                }
+              }
+            }
+          }
+        }
+
+        // NEWGAME name entry
+        Column {
+          visible: root.mode === "newgame"
+          anchors.centerIn: parent
+          spacing: 14
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "NAME YOUR ADVENTURER"
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 15
+          }
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 220; height: 36
+            color: Color.menu.selectedBackground
+            border.color: Color.menu.border
+            border.width: 2
+            TextInput {
+              id: nameInput
+              anchors.fill: parent
+              anchors.margins: 6
+              color: Color.menu.text
+              font.family: Style.font.menuFamily
+              font.pixelSize: 15
+              maximumLength: 18
+              focus: true
+              Keys.onReturnPressed: root.confirmNewGame(text)
+              Keys.onEnterPressed: root.confirmNewGame(text)
+            }
+          }
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 140; height: 32
+            color: Color.menu.selectedBackground
+            border.color: Color.menu.border
+            border.width: 2
+            Text {
+              anchors.centerIn: parent
+              text: "BEGIN"
+              color: Color.menu.text
+              font.family: Style.font.menuFamily
+              font.bold: true; font.pixelSize: 12
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.confirmNewGame(nameInput.text)
+            }
+          }
+        }
+
+        // ARCHIVE
+        Column {
+          visible: root.mode === "archive"
+          anchors.fill: parent
+          anchors.margins: 16
+          spacing: 6
+
+          Text {
+            text: "FALLEN HEROES"
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.bold: true; font.pixelSize: 14
+          }
+          Rectangle { height: 1; width: parent.width; color: Color.menu.border }
+          Repeater {
+            model: root.archive
+            Row {
+              property var e: modelData
+              spacing: 16
+              Text { text: e.name; color: Color.menu.text
+                     font.family: Style.font.menuFamily; font.pixelSize: 12; width: 120 }
+              Text { text: e.started || ""; color: Qt.darker(Color.menu.text, 1.4)
+                     font.family: Style.font.menuFamily; font.pixelSize: 11; width: 90 }
+              Text { text: "FLOOR " + e.floor; color: "#b09030"
+                     font.family: Style.font.menuFamily; font.pixelSize: 12; width: 70 }
+              Text { text: "LVL " + e.level; color: Color.menu.text
+                     font.family: Style.font.menuFamily; font.pixelSize: 12; width: 60 }
+              Text { text: "SCORE " + e.score; color: Color.menu.text
+                     font.family: Style.font.menuFamily; font.pixelSize: 12 }
+            }
+          }
+          Text {
+            visible: root.archive.length === 0
+            text: "— no fallen heroes yet —"
+            color: Qt.darker(Color.menu.text, 1.8)
+            font.family: Style.font.menuFamily; font.pixelSize: 11
+          }
+          Rectangle {
+            width: 120; height: 28
+            color: Color.menu.selectedBackground
+            border.color: Color.menu.border
+            border.width: 2
+            Text { anchors.centerIn: parent; text: "BACK"
+                   color: Color.menu.text; font.family: Style.font.menuFamily
+                   font.bold: true; font.pixelSize: 11 }
+            MouseArea { anchors.fill: parent; onClicked: root.mode = "menu" }
+          }
+        }
+
+        // DEAD
+        Column {
+          visible: root.mode === "dead"
+          anchors.centerIn: parent
+          spacing: 18
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "YOU HAVE FALLEN"
+            color: "#a55555"
+            font.family: Style.font.menuFamily
+            font.bold: true; font.pixelSize: 20
+          }
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: root.runName + " of Floor " + root.floorNum
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.pixelSize: 13
+          }
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 170; height: 34
+            color: Color.menu.selectedBackground
+            border.color: Color.menu.border
+            border.width: 2
+            Text { anchors.centerIn: parent; text: "RETURN TO MENU"
+                   color: Color.menu.text; font.family: Style.font.menuFamily
+                   font.bold: true; font.pixelSize: 12 }
+            MouseArea { anchors.fill: parent; onClicked: root.mode = "menu" }
+          }
+        }
+
+        // LOADING
+        Text {
+          visible: root.mode === "loading"
+          anchors.centerIn: parent
+          text: "awakening the dungeon…"
+          color: Qt.darker(Color.menu.text, 1.6)
+          font.family: Style.font.menuFamily; font.pixelSize: 13
+        }
+      }
+
       Rectangle {
         id: hud
+        visible: root.mode === "game"
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
