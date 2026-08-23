@@ -46,7 +46,7 @@ function serializeRun(s) {
     hp: s.hp, hpMax: s.hpMax,
     mp: s.mp, mpMax: s.mpMax,
     level: s.level, xp: s.xp,
-    str: s.str, dex: s.dex,
+    stats: s.stats,
     leftHand: s.leftHand, rightHand: s.rightHand,
     pack: s.pack, spells: s.spells, effects: s.effects,
     floorNum: s.floorNum,

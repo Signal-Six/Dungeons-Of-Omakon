@@ -7,6 +7,7 @@ import Quickshell.Io
 import "Dungeon.js" as Dungeon
 import "Save.js" as Save
 import "Combat.js" as Combat
+import "Stats.js" as Stats
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -60,16 +61,38 @@ Panel {
   property var pack: (new Array(12)).fill(null)
   property var spells: []              // discovered spells
 
-  property string popupMode: "none"    // "none" | "spells" | "inventory"
+  property string popupMode: "none"    // "none" | "spells" | "inventory" | "stats" | "alloc"
   function togglePopup(mode) {
     popupMode = (popupMode === mode) ? "none" : mode
   }
+
+  // ---- Stats + allocation ---------------------------------------------------
+  function openStatsPopup() { popupMode = "stats" }
+  function grantXp(xp, sourceLabel) {
+    var out = Stats.addXp(heroStats, { level: heroLevel, xp: heroXp }, xp)
+    heroXp = out.xp
+    heroLevel = out.level
+    heroStats = out.stats
+    heroHpMax = Stats.hpMax(heroStats, heroLevel)
+    heroMpMax = Stats.mpMax(heroStats, heroLevel)
+    if (out.levelsGained > 0) {
+      lastLevelUpToast = "LEVEL UP → " + out.level + " (+" + out.levelsGained + ")"
+      popupMode = "alloc"
+    }
+  }
+  function assignStat(stat) {
+    heroStats = Stats.assignPoint(heroStats, stat)
+    heroHpMax = Stats.hpMax(heroStats, heroLevel)
+    heroMpMax = Stats.mpMax(heroStats, heroLevel)
+  }
+  // Combat hooks read the primary stats via combatState().
 
   // Build the state object Combat.attack() expects — this is the seam that
   // Phase 5's HUD buttons and Phase 6's status effects will feed through.
   function combatState() {
     return {
-      str: heroStr, dex: heroDex,
+      str: heroStats.str || 0, dex: heroStats.dex || 0, int: heroStats.int || 0,
+      wil: heroStats.wil || 0,
       rightHand: rightHand, leftHand: leftHand,
       worn: [], effects: heroEffects
     }
@@ -186,7 +209,7 @@ Panel {
       name: runName, started: runStarted,
       hp: heroHp, hpMax: heroHpMax, mp: heroMp, mpMax: heroMpMax,
       level: heroLevel, xp: heroXp,
-      str: heroStr, dex: heroDex,
+      stats: heroStats,
       leftHand: leftHand, rightHand: rightHand,
       pack: pack, spells: spells, effects: heroEffects,
       floorNum: floorNum, seed: floorSeed,
@@ -200,7 +223,7 @@ Panel {
     heroHp = run.hp; heroHpMax = run.hpMax
     heroMp = run.mp; heroMpMax = run.mpMax
     heroLevel = run.level || 1; heroXp = run.xp || 0
-    heroStr = run.str || 10; heroDex = run.dex || 10
+    heroStats = run.stats || Stats.freshStats()
     heroEffects = run.effects || []
     leftHand = run.leftHand || null
     rightHand = run.rightHand || ({ icon: "†", name: "Rusty Sword" })
@@ -221,8 +244,9 @@ Panel {
     name = ("" + name).trim(); if (name === "") return
     runName = name
     runStarted = Qt.formatDate(new Date(), "yyyy-MM-dd")
-    heroHp = 20; heroHpMax = 20; heroMp = 8; heroMpMax = 8
+    heroHp = 25; heroHpMax = 25; heroMp = 15; heroMpMax = 15
     heroLevel = 1; heroXp = 0
+    heroStats = Stats.freshStats()
     leftHand = null
     rightHand = ({ icon: "†", name: "Rusty Sword" })
     pack = (new Array(12)).fill(null)
@@ -999,6 +1023,33 @@ Panel {
             }
           }
 
+          // STATS — opens the character-sheet popup (heart icon per request).
+          Column {
+            spacing: 2
+            Rectangle {
+              width: 44
+              height: 40
+              color: root.popupMode === "stats" ? Color.menu.selectedBackground : "transparent"
+              border.color: Color.menu.border
+              border.width: 2
+              Text {
+                anchors.centerIn: parent
+                text: "♥"
+                color: root.popupMode === "stats" ? Color.menu.text : Qt.darker(Color.menu.text, 2.0)
+                font.family: Style.font.menuFamily
+                font.pixelSize: 18
+              }
+              MouseArea { anchors.fill: parent; onClicked: root.togglePopup("stats") }
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: "STATS"
+              color: Qt.darker(Color.menu.text, 1.8)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 9
+            }
+          }
+
           // Left hand — shield slot
           Column {
             spacing: 2
@@ -1137,6 +1188,122 @@ Panel {
               color: Qt.darker(Color.menu.text, 1.8)
               font.family: Style.font.menuFamily
               font.pixelSize: 9
+            }
+          }
+        }
+
+        // ---- Stats popup (STATS button) — read-only view ------------------------
+        Rectangle {
+          visible: root.popupMode === "stats"
+          anchors.bottom: parent.top
+          anchors.right: parent.right
+          anchors.bottomMargin: 4
+          width: 260
+          height: 250
+          color: Color.menu.background
+          border.color: Color.menu.border
+          border.width: 2
+          z: 10
+          Column {
+            anchors.fill: parent
+            anchors.margins: 10
+            spacing: 4
+
+            Text { text: "CHARACTER SHEET"; font.bold: true; font.pixelSize: 12
+              font.family: Style.font.menuFamily; color: Color.menu.text }
+            Rectangle { width: parent.width; height: 1; color: Color.menu.border }
+
+            Text { text: "LVL " + root.heroLevel + "  " + root.runName; font.pixelSize: 11
+              font.family: Style.font.menuFamily; color: Color.menu.text }
+            Text { text: "HP " + root.heroHp + "/" + root.heroHpMax
+                   + "    MP " + root.heroMp + "/" + root.heroMpMax
+              font.pixelSize: 11; font.family: Style.font.menuFamily; color: Color.menu.text }
+
+            // EXP bar, e.g. EXP [|||||  ] 75/100
+            Text { text: "EXP"; font.pixelSize: 10; font.family: Style.font.menuFamily;
+              color: Qt.darker(Color.menu.text, 1.6) }
+            Rectangle {
+              width: parent.width; height: 12
+              color: "transparent"; border.color: Color.menu.border; border.width: 1
+              Rectangle {
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: (parent.width * Math.min(1, (root.heroXp % 100) / 100)) - 2
+                color: "#b09030"
+              }
+              Text {
+                anchors.centerIn: parent
+                text: (root.heroXp % 100) + "/100"
+                font.pixelSize: 9; font.family: Style.font.menuFamily
+                color: Color.menu.text
+              }
+            }
+
+            Repeater {
+              model: [
+                { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
+                { k: "con", label: "CON" }, { k: "int", label: "INT" },
+                { k: "wil", label: "WIL" }
+              ]
+              Text {
+                property var s: modelData
+                text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
+                font.pixelSize: 12; font.family: Style.font.menuFamily; color: Color.menu.text
+              }
+            }
+          }
+        }
+
+        // ---- ALLOC modal — level up: pick one stat to bump ----------------------
+        Rectangle {
+          visible: root.popupMode === "alloc"
+          anchors.centerIn: parent
+          width: 240
+          height: 220
+          color: Color.menu.background
+          border.color: Color.menu.border
+          border.width: 2
+          z: 20
+          Column {
+            anchors.fill: parent; anchors.margins: 12; spacing: 6
+
+            Text {
+              text: "LEVEL UP — " + root.lastLevelUpToast
+              font.bold: true; font.pixelSize: 12
+              font.family: Style.font.menuFamily; color: "#b09030"
+            }
+            Text { text: "Confirm a +1 to one stat:"; font.pixelSize: 10
+              font.family: Style.font.menuFamily; color: Qt.darker(Color.menu.text, 1.5) }
+
+            Repeater {
+              model: [
+                { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
+                { k: "con", label: "CON" }, { k: "int", label: "INT" },
+                { k: "wil", label: "WIL" }
+              ]
+              Rectangle {
+                property var s: modelData
+                width: parent.width; height: 24
+                color: Color.menu.selectedBackground
+                border.color: Color.menu.border; border.width: 1
+                Row {
+                  anchors.fill: parent; anchors.margins: 4; spacing: 8
+                  Text { text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
+                    font.pixelSize: 11; font.family: Style.font.menuFamily; color: Color.menu.text }
+                  Rectangle {
+                    width: 22; height: 16
+                    color: "#d0b040"
+                    Text { anchors.centerIn: parent; text: "+"; color: "#1b1712"
+                      font.bold: true; font.pixelSize: 11 }
+                  }
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  onClicked: {
+                    root.assignStat(s.k)
+                    if ((root.heroStats && root.heroStats.unspent || 0) <= 0) root.popupMode = "none"
+                  }
+                }
+              }
             }
           }
         }
