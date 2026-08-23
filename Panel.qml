@@ -305,16 +305,24 @@ Panel {
               var nextSlice = (d < 4) ? v[d] : null
               var nextVisible = nextSlice && nextSlice.visible
               if (d + 1 <= 4) {
+                // Recess panel for an open side: the opening occupies the
+                // band between face(d-1)'s side edge (near bound of the
+                // segment) and face(d)'s side edge (far bound). The back
+                // wall of that side passage therefore covers from the inner
+                // face(d+1) edge all the way out to face(d-1)'s edge —
+                // not just the sliver between face(d) and face(d+1), which
+                // leaves a naked-background band at the near end (the
+                // perpendicular "T" gap).
+                var loL = faceRect(d - 1), hiL = faceRect(d + 1)
                 if (!slice.left && (!nextVisible || nextSlice.left === false)) {
-                  var inL = faceRect(d + 1), outL = faceRect(d)
                   ctx.fillStyle = colEnd[Math.min(d, 3)]
-                  ctx.fillRect(inL.x, inL.y, outL.x - inL.x, inL.h)
+                  ctx.fillRect(hiL.x, hiL.y, loL.x - hiL.x, hiL.h)
                 }
                 if (!slice.right && (!nextVisible || nextSlice.right === false)) {
-                  var inR = faceRect(d + 1), outR = faceRect(d)
+                  var loR = faceRect(d - 1), hiR = faceRect(d + 1)
                   ctx.fillStyle = colEnd[Math.min(d, 3)]
-                  ctx.fillRect(inR.x + inR.w, inR.y,
-                               (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+                  ctx.fillRect(hiR.x + hiR.w, hiR.y,
+                               (loR.x + loR.w) - (hiR.x + hiR.w), hiR.h)
                 }
               }
             }
