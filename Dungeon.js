@@ -119,15 +119,16 @@ function hasWall(floor, r, c, d) {
   return d === 0 ? n.n : d === 1 ? n.e : d === 2 ? n.s : n.w
 }
 
-// Compute the 3-deep first-person view from pos within floor.
-// Returns depths [1, 2, 3]; each:
-//   { left, right, end: bool wall flags, feature: node feature at that
-//     depth, visible: false when beyond an intervening end wall }
+// Compute the first-person view from pos within floor: VISTA_DEPTH cells
+// ahead (index 0 = one step ahead). Each entry:
+//   { left, right, end: bool wall flags on that cell, endThis: unused here,
+//     feature: node feature, visible: false when beyond an intervening wall }
+var VISTA_DEPTH = 4
 function vista(floor, pos) {
   var out = []
   var row = pos.row, col = pos.col
   var aheadBlocked = false
-  for (var depth = 1; depth <= 3; depth++) {
+  for (var depth = 1; depth <= VISTA_DEPTH; depth++) {
     if (aheadBlocked) {
       out.push({ left: false, right: false, end: false, feature: "none", visible: false })
       continue
@@ -169,7 +170,7 @@ function turn(pos, dir) { // -1 left, +1 right
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ROWS: ROWS, COLS: COLS, DR: DR, DC: DC,
-    rngFromSeed: rngFromSeed, generate: generate,
+    rngFromSeed: rngFromSeed, generate: generate, VISTA_DEPTH: VISTA_DEPTH,
     hasWall: hasWall, vista: vista, move: move, turn: turn
   }
 }

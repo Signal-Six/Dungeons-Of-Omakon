@@ -221,14 +221,14 @@ Panel {
             ctx.clearRect(0, 0, W, H)
             var W2 = W / 2, H2 = H / 2
 
-            // face geometry at depth d (0 = current cell, 1..3): half-size of
-            // the projected square face, centered. Depth 0 is the FULL
-            // viewport (not a centered square) so side-wall quads anchor to
-            // the real screen edges — otherwise uncovered sky/floor gutters
-            // at the left/right edges read as open corridors you can walk
-            // into (the "false walls" report).
+            // face geometry at depth d (0 = current cell, 1..4): half-size of
+            // the projected square face, centered. Scale series uses roughly
+            // harmonic falloff (1/(d+1)) so successive cells read at even
+            // visual steps; with depth-4 the farthest perceptible segment is
+            // four cells away — enough to see a three-cells-away side branch
+            // or a four-cells-away end wall clearly.
             var base = Math.min(W2, H2)
-            var half = [base * 1.0, base * 0.62, base * 0.38, base * 0.22]
+            var half = [base, base * 0.62, base * 0.40, base * 0.26, base * 0.17]
 
             function faceRect(d) {
               if (d === 0) return { x: 0, y: 0, w: W, h: H }
@@ -259,46 +259,40 @@ Panel {
             }
 
             var v = root.view
-            if (v.length !== 3) return
+            if (v.length !== 4) return
 
-            var colEnd = ["#6e6552", "#46413a", "#2c2822"]   // brightness falls off
-            var colSide = ["#8a7f66", "#565045", "#38342c"]
+            // Bright close → dark far (classic flashlight falloff).
+            var colEnd  = ["#6e6552", "#51493c", "#3c362c", "#2a2620"]
+            var colSide = ["#8a7f66", "#605847", "#453f34", "#332e27"]
 
-            // Far-to-near: depth-3, then 2, then 1.
-            //
-            // Geometry: cell(d)'s side walls span face(d-1) -> face(d)
-            // (correct corridor slabs). The end wall ON cell(d) is the wall
-            // at that cell's far side — drawn at face(d) (d cells away).
-            // SEPARATELY: if the forward edge of the cell you're standing in
-            // is closed (wallAt(0)), you're nose-against-wall — paint the
-            // full viewport as the wall face. These are distinct states;
-            // conflating them caused both the "false walls" and the
-            // "whole-screen tan" artefacts.
-            for (var d = 3; d >= 1; d--) {
+            // Perception rules:
+            //   * cell(d).left/right: wall on that cell's side edge → slab
+            //     spanning face(d-1) -> face(d).
+            //   * An OPEN side at depth d>=2 also fills the recess with a
+            //     panel one plane deeper (face(d+1)) so the branch reads as a
+            //     dark corridor mouth, not a void.
+            //   * cell(d).end: wall on that cell's far edge → face(d).
+            //   * wallAt(0): forward edge of YOUR cell is blocked — paint the
+            //     full viewport (nose against the wall).
+            for (var d = 4; d >= 1; d--) {
               var slice = v[d - 1]
               if (!slice.visible) continue
               if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
               if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
               if (slice.end) fillFace(d, colEnd[d - 1])
 
-              // Side opening: when a side edge of cell(d) is open, the slab
-              // is skipped, which otherwise leaves naked sky/floor — a "gap"
-              // that looks like exposed void instead of a passage. Fill the
-              // recess with the side-passage's back wall: a solid panel one
-              // face deeper (d+1), covering the region beyond face(d)'s side
-              // edge within face(d+1)'s vertical extent.
-              if (!slice.left && d + 1 <= 3) {
-                var inner = faceRect(d + 1)
-                var outer = faceRect(d)
-                ctx.fillStyle = colEnd[Math.min(d, 2)]
-                ctx.fillRect(inner.x, inner.y, outer.x - inner.x, inner.h)
-              }
-              if (!slice.right && d + 1 <= 3) {
-                var inR = faceRect(d + 1)
-                var outR = faceRect(d)
-                ctx.fillStyle = colEnd[Math.min(d, 2)]
-                ctx.fillRect(inR.x + inR.w, inR.y,
-                             (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+              if (d + 1 <= 4) {
+                if (!slice.left) {
+                  var inL = faceRect(d + 1), outL = faceRect(d)
+                  ctx.fillStyle = colEnd[Math.min(d, 3)]
+                  ctx.fillRect(inL.x, inL.y, outL.x - inL.x, inL.h)
+                }
+                if (!slice.right) {
+                  var inR = faceRect(d + 1), outR = faceRect(d)
+                  ctx.fillStyle = colEnd[Math.min(d, 3)]
+                  ctx.fillRect(inR.x + inR.w, inR.y,
+                               (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+                }
               }
             }
             if (root.wallAt(0)) fillFace(0, colEnd[0])

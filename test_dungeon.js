@@ -58,7 +58,7 @@ for (const seed of [1, 2, 3, 7, 42, 123, 999, 12345, 31337]) {
 // Vista from entrance: depths 1-3, end walls stop further lookahead
 let pos = { row: f.start.row, col: f.start.col, facing: 0 }
 const v = D.vista(f, pos)
-check("vista returns 3 depths", v.length === 3)
+check("vista returns VISTA_DEPTH slices", v.length === D.VISTA_DEPTH)
 check("depth1 end == wall ahead", v[0].end === D.hasWall(f, pos.row, pos.col, 0))
 check("depth beyond end wall invisible",
   v.slice(1).every((d, i) => !v[i].end || !v[i + 1].visible))
