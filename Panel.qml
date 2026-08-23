@@ -6,6 +6,7 @@ import qs.Ui
 import Quickshell.Io
 import "Dungeon.js" as Dungeon
 import "Save.js" as Save
+import "Combat.js" as Combat
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -63,6 +64,19 @@ Panel {
   function togglePopup(mode) {
     popupMode = (popupMode === mode) ? "none" : mode
   }
+
+  // Build the state object Combat.attack() expects — this is the seam that
+  // Phase 5's HUD buttons and Phase 6's status effects will feed through.
+  function combatState() {
+    return {
+      str: heroStr, dex: heroDex,
+      rightHand: rightHand, leftHand: leftHand,
+      worn: [], effects: heroEffects
+    }
+  }
+  // Attack a monster { dv: int, ... }. Returns Combat.attack's result
+  // without applying HP — the combat loop (Phase 5) owns that.
+  function attackMonster(monster) { return Combat.attack(combatState(), monster) }
 
   // ---- Floor state (persisted via Save.js / keyring) -----------------------
   property bool automapOn: true
@@ -172,8 +186,9 @@ Panel {
       name: runName, started: runStarted,
       hp: heroHp, hpMax: heroHpMax, mp: heroMp, mpMax: heroMpMax,
       level: heroLevel, xp: heroXp,
+      str: heroStr, dex: heroDex,
       leftHand: leftHand, rightHand: rightHand,
-      pack: pack, spells: spells,
+      pack: pack, spells: spells, effects: heroEffects,
       floorNum: floorNum, seed: floorSeed,
       pos: pos, explored: explored
     }
@@ -185,6 +200,8 @@ Panel {
     heroHp = run.hp; heroHpMax = run.hpMax
     heroMp = run.mp; heroMpMax = run.mpMax
     heroLevel = run.level || 1; heroXp = run.xp || 0
+    heroStr = run.str || 10; heroDex = run.dex || 10
+    heroEffects = run.effects || []
     leftHand = run.leftHand || null
     rightHand = run.rightHand || ({ icon: "†", name: "Rusty Sword" })
     pack = run.pack || (new Array(12)).fill(null)

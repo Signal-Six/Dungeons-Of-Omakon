@@ -11,9 +11,9 @@ function check(name, ok) {
 const state = {
   name: "Grummsh", started: "2026-08-23T10:00:00Z",
   hp: 14, hpMax: 20, mp: 3, mpMax: 8,
-  level: 2, xp: 150,
+  level: 2, xp: 150, str: 12, dex: 9,
   leftHand: null, rightHand: { icon: "†", name: "Rusty Sword" },
-  pack: new Array(12).fill(null), spells: [],
+  pack: new Array(12).fill(null), spells: [], effects: [],
   floorNum: 3, seed: 424242,
   pos: { row: 2, col: 4, facing: 1 },
   explored: { "5,0": true, "4,0": true }
