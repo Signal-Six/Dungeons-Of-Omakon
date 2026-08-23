@@ -82,9 +82,17 @@ Panel {
       pos = np
       markExplored(np.row, np.col)
     }
+    debugVista()
   }
-  function turn(rel) { pos = Dungeon.turn(pos, rel) }
+  function turn(rel) { pos = Dungeon.turn(pos, rel); debugVista() }
 
+  // Dev trace: dumps the current cell, facing, and vista flags so on-screen
+  // renders can be cross-checked against the maze data (journalctl).
+  function debugVista() {
+    var v = Dungeon.vista(floor, pos)
+    console.log("omakon pos=" + pos.row + "," + pos.col + " face=" + pos.facing
+      + " wallAt0=" + wallAt(0) + " vista=" + JSON.stringify(v))
+  }
   // ---- Window ---------------------------------------------------------------
   PanelWindow {
     id: win
@@ -272,6 +280,26 @@ Panel {
               if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
               if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
               if (slice.end) fillFace(d, colEnd[d - 1])
+
+              // Side opening: when a side edge of cell(d) is open, the slab
+              // is skipped, which otherwise leaves naked sky/floor — a "gap"
+              // that looks like exposed void instead of a passage. Fill the
+              // recess with the side-passage's back wall: a solid panel one
+              // face deeper (d+1), covering the region beyond face(d)'s side
+              // edge within face(d+1)'s vertical extent.
+              if (!slice.left && d + 1 <= 3) {
+                var inner = faceRect(d + 1)
+                var outer = faceRect(d)
+                ctx.fillStyle = colEnd[Math.min(d, 2)]
+                ctx.fillRect(inner.x, inner.y, outer.x - inner.x, inner.h)
+              }
+              if (!slice.right && d + 1 <= 3) {
+                var inR = faceRect(d + 1)
+                var outR = faceRect(d)
+                ctx.fillStyle = colEnd[Math.min(d, 2)]
+                ctx.fillRect(inR.x + inR.w, inR.y,
+                             (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+              }
             }
             if (root.wallAt(0)) fillFace(0, colEnd[0])
           }
