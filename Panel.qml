@@ -73,8 +73,16 @@ Panel {
     explored = next    // new object identity so the automap re-evaluates
   }
 
-  property var view: pos ? Dungeon.vista(floor, pos) : []
+  readonly property var view: floor ? Dungeon.vista(floor, pos) : []
   function wallAt(rel) { return Dungeon.hasWall(floor, pos.row, pos.col, (pos.facing + rel + 4) % 4) }
+  // Wall on the FAR edge of the side cell at relative direction rel (0 =
+  // forward edge of that side cell, etc.). Used to decide whether an open
+  // side passage has a visible back wall to draw.
+  function sideWallAt(rel) {
+    var d = (pos.facing + rel + 4) % 4
+    var sr = pos.row + Dungeon.DR[d], sc = pos.col + Dungeon.DC[d]
+    return Dungeon.hasWall(floor, sr, sc, pos.facing)
+  }
 
   function move(dir) {
     var np = Dungeon.move(floor, pos, dir)
@@ -284,12 +292,12 @@ Panel {
             // standing at an L-junction with a passage beside you), the side
             // slab for depth 0 is never drawn and sky/floor leaks through;
             // patch it with a full-height panel at the passage's back wall.
-            if (!root.wallAt(3)) { // left relative
+            if (!root.wallAt(3) && root.sideWallAt(3)) { // left open, back wall exists
               var fL = faceRect(1)
               ctx.fillStyle = colEnd[0]
               ctx.fillRect(0, fL.y, fL.x, fL.h)
             }
-            if (!root.wallAt(1)) { // right relative
+            if (!root.wallAt(1) && root.sideWallAt(1)) { // right open, back wall exists
               var fR = faceRect(1)
               ctx.fillStyle = colEnd[0]
               ctx.fillRect(fR.x + fR.w, fR.y, W - (fR.x + fR.w), fR.h)
@@ -298,33 +306,28 @@ Panel {
             for (var d = 4; d >= 1; d--) {
               var slice = v[d - 1]
               if (!slice.visible) continue
+
+              // (1) side-passage recess: draw the open side cell's own far
+              // wall (its "end" edge). Always-on when the side cell has one;
+              // painted before the middle's slabs so they can overdraw it.
+              if (!slice.left && slice.sideL && slice.sideL.end && d + 1 <= 4) {
+                var inL = faceRect(d + 1), outL = faceRect(d - 1)
+                ctx.fillStyle = colEnd[Math.min(d, 3)]
+                ctx.fillRect(inL.x, inL.y, outL.x - inL.x, inL.h)
+              }
+              if (!slice.right && slice.sideR && slice.sideR.end && d + 1 <= 4) {
+                var inR = faceRect(d + 1), outR = faceRect(d - 1)
+                ctx.fillStyle = colEnd[Math.min(d, 3)]
+                ctx.fillRect(inR.x + inR.w, inR.y,
+                             (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+              }
+
+              // (2) middle side slabs
               if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
               if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
-              if (slice.end) fillFace(d, colEnd[d - 1])
 
-              var nextSlice = (d < 4) ? v[d] : null
-              var nextVisible = nextSlice && nextSlice.visible
-              if (d + 1 <= 4) {
-                // Recess panel for an open side: the opening occupies the
-                // band between face(d-1)'s side edge (near bound of the
-                // segment) and face(d)'s side edge (far bound). The back
-                // wall of that side passage therefore covers from the inner
-                // face(d+1) edge all the way out to face(d-1)'s edge —
-                // not just the sliver between face(d) and face(d+1), which
-                // leaves a naked-background band at the near end (the
-                // perpendicular "T" gap).
-                var loL = faceRect(d - 1), hiL = faceRect(d + 1)
-                if (!slice.left && (!nextVisible || nextSlice.left === false)) {
-                  ctx.fillStyle = colEnd[Math.min(d, 3)]
-                  ctx.fillRect(hiL.x, hiL.y, loL.x - hiL.x, hiL.h)
-                }
-                if (!slice.right && (!nextVisible || nextSlice.right === false)) {
-                  var loR = faceRect(d - 1), hiR = faceRect(d + 1)
-                  ctx.fillStyle = colEnd[Math.min(d, 3)]
-                  ctx.fillRect(hiR.x + hiR.w, hiR.y,
-                               (loR.x + loR.w) - (hiR.x + hiR.w), hiR.h)
-                }
-              }
+              // (3) middle end face — always on top within this row
+              if (slice.end) fillFace(d, colEnd[d - 1])
             }
             if (root.wallAt(0)) fillFace(0, colEnd[0])
           }

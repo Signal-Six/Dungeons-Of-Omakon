@@ -120,9 +120,15 @@ function hasWall(floor, r, c, d) {
 }
 
 // Compute the first-person view from pos within floor: VISTA_DEPTH cells
-// ahead (index 0 = one step ahead). Each entry:
-//   { left, right, end: bool wall flags on that cell, endThis: unused here,
-//     feature: node feature, visible: false when beyond an intervening wall }
+// ahead (index 0 = one step ahead). Each entry carries the middle-cell
+// flags plus the off-axis side cells' end-wall and inner-partition flags
+// (sorcery-style 3-column tile view):
+//   left, right  — middle cell's side edges
+//   end          — middle cell's far edge
+//   sideL.side   — left cell's edge toward the middle (partition)
+//   sideL.end    — left cell's far edge
+//   sideL.far    — left cell's outer side edge (hardly needed ahead)
+//   (same for sideR)
 var VISTA_DEPTH = 4
 function vista(floor, pos) {
   var out = []
@@ -130,22 +136,43 @@ function vista(floor, pos) {
   var aheadBlocked = false
   for (var depth = 1; depth <= VISTA_DEPTH; depth++) {
     if (aheadBlocked) {
-      out.push({ left: false, right: false, end: false, feature: "none", visible: false })
+      out.push({ left: true, right: true, end: true, feature: "none",
+                 sideL: null, sideR: null, visible: false })
       continue
     }
     var nr = row + DR[pos.facing] * depth
     var nc = col + DC[pos.facing] * depth
     var leftD = (pos.facing + 3) % 4
     var rightD = (pos.facing + 1) % 4
-    out.push({
+
+    var inMaze = nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS
+    var slice = {
       left: hasWall(floor, nr, nc, leftD),
       right: hasWall(floor, nr, nc, rightD),
       end: hasWall(floor, nr, nc, pos.facing),
-      feature: (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS)
-        ? floor.nodes[nr][nc].feature : "none",
-      visible: true
-    })
-    if (out[out.length - 1].end) aheadBlocked = true
+      feature: inMaze ? floor.nodes[nr][nc].feature : "none",
+      visible: true,
+      sideL: null,
+      sideR: null
+    }
+    // Side cells at this depth (off-axis). Only filled when the middle
+    // cell's side is open; the recess walls come from these.
+    if (inMaze && !slice.left) {
+      var lr = nr + DR[leftD], lc = nc + DC[leftD]
+      slice.sideL = {
+        side: hasWall(floor, lr, lc, rightD),   // partition back to middle
+        end: hasWall(floor, lr, lc, pos.facing) // far face of the passage
+      }
+    }
+    if (inMaze && !slice.right) {
+      var rr = nr + DR[rightD], rc = nc + DC[rightD]
+      slice.sideR = {
+        side: hasWall(floor, rr, rc, leftD),
+        end: hasWall(floor, rr, rc, pos.facing)
+      }
+    }
+    out.push(slice)
+    if (slice.end) aheadBlocked = true
     else { row = nr; col = nc }
   }
   return out
