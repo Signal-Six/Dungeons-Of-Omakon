@@ -308,18 +308,22 @@ Panel {
               if (!slice.visible) continue
 
               // (1) side-passage recess: draw the open side cell's own far
-              // wall (its "end" edge). Always-on when the side cell has one;
-              // painted before the middle's slabs so they can overdraw it.
+              // wall (its "end" edge). Bounds: the passage mouth at this
+              // depth spans face(d)'s side edge -> face(d+1)'s side edge
+              // (the recess goes ONE band deeper). Bounding the near side
+              // at face(d-1) instead pushes the recess one tile too close
+              // and it swallows the middle column — the timing bug from the
+              // last screenshot.
               if (!slice.left && slice.sideL && slice.sideL.end && d + 1 <= 4) {
-                var inL = faceRect(d + 1), outL = faceRect(d - 1)
+                var nearL = faceRect(d), farL = faceRect(d + 1)
                 ctx.fillStyle = colEnd[Math.min(d, 3)]
-                ctx.fillRect(inL.x, inL.y, outL.x - inL.x, inL.h)
+                ctx.fillRect(farL.x, farL.y, nearL.x - farL.x, farL.h)
               }
               if (!slice.right && slice.sideR && slice.sideR.end && d + 1 <= 4) {
-                var inR = faceRect(d + 1), outR = faceRect(d - 1)
+                var nearR = faceRect(d), farR = faceRect(d + 1)
                 ctx.fillStyle = colEnd[Math.min(d, 3)]
-                ctx.fillRect(inR.x + inR.w, inR.y,
-                             (outR.x + outR.w) - (inR.x + inR.w), inR.h)
+                ctx.fillRect(farR.x + farR.w, farR.y,
+                             (nearR.x + nearR.w) - (farR.x + farR.w), farR.h)
               }
 
               // (2) middle side slabs

@@ -1,0 +1,66 @@
+Name,Accuracy,Damage,Defense,Description,Type
+Rusty Sword,1,1,--,Little more than a fragile stick of rusted metal. Where did you find this and why did you bring it into a dungeon?,Weapon
+Short Sword,1,2,--,"A rogue’s short sword, about 3 feet long. Suitable for defense when nothing else is available.",Weapon
+Long Sword,2,2,--,A typical knight’s sword. No duller than any other blade but the length provides for extra reach.,Weapon
+Spear,3,1,--,"A simple, almost primitive, spear topped with an iron sheaf. Surprisingly accurate but does little damage.",Weapon
+Crossbow,3,4,--,"A complex, wooden crossbow with a winch mechanism. Fires bolts with tremendous force.",Weapon
+Long Bow,4,3,--,A traditional wooden bow favored by the Elves. Tremendously accurate but limited by human strength.,Weapon
+Scimitar,3,5,--,A curved blade from a foreign land. Hard to use but good at opening wounds.,Weapon
+Katana,3,6,--,"A rare weapon forged in Eastern lands. Light and wieldy, able to slice with ease.",Weapon
+Morningstar,4,4,--,"A metal, spiked cudgel employed by certain priestly sects. Robust and easy to use.",Weapon
+Warhammer,2,5,--,A weighty iron hammer on a long haft. Slow and unforgiving but able to deal powerful blows.,Weapon
+Glaive,5,4,--,"A large, curved blade affixed to a spear-length shaft. Surprisingly devastating in the right hands.",Weapon
+Trident,4,5,--,"Once a tool for fishing, it has been militarized to impressive effect. Favored by mysterious clans of the Central Sea.",Weapon
+Odachi,3,7,--,A huge katana made for slicing the legs off cavalry horses. Extremely slow but devastating.,Weapon
+Rapier,6,2,--,"A light, quick, pointed weapon intended for fencing. Highly accurate but can only deal slight damage.",Weapon
+Reiterschwerter,2,3,1,A cavalry saber with a basket hilt. Similar to a long sword although the hilt grants slight defense.,Weapon
+Lance,3,3,--,"A large, heavy spear meant for thrusting on horseback. Moderately effective on foot.",Weapon
+Whip,6,1,--,"A long, flexible strap meant for taming beasts. Incredibly fast but can only produce superficial wounds.",Weapon
+Barbed Wire,1,1,--,Only a maniac would wrap barbed wire around one’s fists. What do you intend to do with this?,Weapon
+Meteor Hammer,3,5,--,An exotic weapon consisting of heavy metal weights connected via a chain. Awkward to use but can catch opponents off-guard.,Weapon
+Axe,2,6,--,"A militarized chopping axe, heavy and slow. A favorite among lesser races who value power above all else.",Weapon
+Club,4,2,--,Nothing more than a weighty piece of debris. Surprisingly effective at bludgeoning.,Weapon
+Bo Staff,3,3,2,"A martial staff wielded by Eastern men. Meant for parrying attacks as much as delivering them, thus adding to one’s defense.",Weapon
+Tonfa,2,3,1,"A club-like weapon held with a reverse grip. Better than using one’s fists alone. Also meant for parrying attacks, thus adding to one’s defense.",Weapon
+War Banner,3,2,2,"A rare find: a spear with a martial banner attached. The banner flutters as it is waved, providing a defensive distraction.",Weapon
+Pistol,1,7,--,A matchlock pistol of simple design. Fires ball rounds. Highly inaccurate but when it does connect it can easily cripple an opponent.,Weapon
+Rifle,3,10,--,"A matchlock rifle with a long barrel. Fires ball rounds. Slightly more accurate than a pistol, thanks to its length, and much more damaging. A single shot can fell weaker creatures.",Weapon
+Siege Cannon,2,20,--,A colossal iron cannon capable of firing heavy ammunition. Absurdly weighty and slow. Only a madman would think about firing this.,Weapon
+Urumi,2,9,--,"Essentially, a flexible metal whip. Dangerous to the user and rather unwieldly, it nevertheless can sever limbs thanks to its thin steel blade.",Weapon
+Autocross,5,7,--,An ancient weapon of a bygone era. Its boxy construction resembles a cross and it is held with a reverse grip. Emits harnessed light.,Weapon
+Mage’s Staff,10,3,--,A magical staff enchanted to fire balls of energy. Highly accurate but strong creatures can shrug off the blasts.,Weapon
+Battlemage Staff,10,6,--,A powerful staff enchanted with war magic. Fires bolts of mana.,Weapon
+Kunai,5,2,--,Trowel-shaped daggers that can be thrown with high accuracy. Favored by Eastern assassins.,Weapon
+Lensman Armillary,10,10,--,"A floating metal orb controlled by a wrist brace, which syncronizes with the user’s thoughts. Fires beams of light.",Weapon
+Power Glove,5,6,--,"A magical, metal glove of ancient construction. Enchanted with battle magic, it allows the user to strike swift, damaging blows.",Weapon
+Archaic Carbine,10,10,--,A rifle-like device of ancient construction. Fires piercing beams of energy.,Weapon
+Mana Manifold,10,12,--,"Magical, floating cubes that encircle the user’s hand. Harnesses occult power to project a devastating beam of magical force.",Weapon
+Chakram,10,7,--,"A magical ring of psionic energy, telepathically controlled. Can be flung at opponents to deadly effect.",Weapon
+Book of Power,infinite,10,--,"A magical grimoire, enchanted to damage enemies purely by recitation. Thus, it cannot be dodged.",Weapon
+Sapien Cannon,1,infinite,--,"A large, shoulder mounted siege weapon. Highly inaccurate but capable of killing any living creature should they find themselves struck by its beam.",Weapon
+Buckler,--,--,1,"A small metal disk affixed to the forearm. Primarily meant to parry small arms, its defense is negligible.",Shield
+Kite Shield,--,--,10,A standard knight’s shield. Provides decent coverage of the limbs and torse for solid defense.,Shield
+Tower Shield,-2,--,20,A huge steel shield nearly the length of a man. Provides superb defense but impairs one’s accuracy.,Shield
+Monument Shield,-6,--,40,A colossal stone shield graven with a Dwarven visage. Favored by the Dwarves but largely ceremonial as its weight is extremely cumbersome.,Shield
+Woven Shield,--,--,5,A wicker shield favored by men of the East. Light and sturdy. Able to impart considerable defense although its weak material construction undermines its efficacy.,Shield
+Orrery Shield,-1,--,17,Enchanted orbs encircle the user’s arm and move to intercept incoming strikes. Highly effective although coordinating one’s movements to theirs is sometimes difficult.,Shield
+Phase Shield,--,--,30,"An ancient shield of a bygone era. Normally the size of a buckler. When activated, a green barrier of energy emerges that negates attacks.",Shield
+Hyper Shield,-10,--,50,"A purely defensive device, affixed to the user’s arm. It generates a force field around the bearer but such coverage greatly impedes attacks. Used by the ancient men who walk the stars.",Shield
+Turtle Shell,-5,--,30,"The shell of some large animal, remade into a shield. Due to its curvature, it impedes attacks although the hide is quite durable.",Shield
+Spiked Shield,-1,3,5,"A spiked, weaponized shield used by gladiators. Contributes to the user’s offense although it is meant for bloodsport and thus provides little coverage.",Shield
+Rations,--,--,--,Simple trail rations. Restores 5 HP.,Item
+Potion,--,--,--,An enchanted healing draught. Restores 10 HP.,Item
+High Potion,--,--,--,An effective healing draught. Restores 20 HP.,Item
+Ex Potion,--,--,--,An extremely effective draught. Restores 50 HP.,Item
+Mana Essence,--,--,--,Ambient magical energy condensed into a sphere. Restores 10 MP.,Item
+Mana Flux,--,--,--,Ambient magical energy condensed into fine wires. Restores 30 MP.,Item
+Mana Crystal,--,--,--,Highly condensed magical energy. Restores 100 MP.,Item
+Voodoo Doll,--,--,--,"Necromantic doll attuned to the user’s life force. If the user would be killed, the doll is sacrificed instead.",Item
+Beacon,--,--,--,"Use this to reveal the location of a descending stair case. However, it does not reveal how to get there.",Item
+Terror Horn,--,--,--,Blow this horn to frighten away lesser creatures. Instantly kills creatures below level 5 but you receive no experience.,Item
+Coin Purse,--,--,--,A bag of golden coinage. Does nothing but holding it increases your score.,Item
+Bindor’s Deceit,--,--,--,"A fragile pod that you snap, creating enchanted smoke. Negates the enemy’s next attack.",Item
+Jethry’s Numenon,--,--,--,A magical plate with numbers etched into it. Reveals the position of enemies on the floor.,Item
+Beserker Phial,--,--,--,Drinking this grants +5 damage on the next 5 attacks.,Item
+Behelit,--,--,--,"Use to instantly transit to the next floor. However, you permanently lose 5 HP.",Item
+The Omatrix,--,--,--,Obtain this to win the game. Instantly generates an ascending staircase. Fight your way to the staircase to leave the dungeon!,Item
