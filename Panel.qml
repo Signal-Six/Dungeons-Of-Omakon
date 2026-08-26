@@ -442,6 +442,11 @@ Panel {
         readonly property color endNear:  "#6e6552"
         readonly property color endFar:   "#3c3830"
         readonly property color voidCol:  "#0a0b10"
+        // Side-passage visual language. An open side always reads as a very
+        // dark "void band"; the passage's far wall (when it faces you) is a
+        // lit rect one band deeper, framed by the void. Openings are
+        // unmistakable at every depth — walls never share the void palette.
+        readonly property color gapCol:   "#11141d"  // void over sky/floor
 
         // Sky (ceiling) and floor slabs.
         Rectangle { anchors.left: parent.left; anchors.right: parent.right
@@ -535,62 +540,81 @@ Panel {
             //   * cell(d).left/right: wall on that cell's side edge → slab
             //     spanning face(d-1) -> face(d).
             //   * An OPEN side at depth d: the side cell S shares this cell's
-            //     depth band, so its mouth IS the side quad wallQuad(d,±1)
-            //     (the quad a side slab would occupy). That quad is ALWAYS
-            //     filled — leaving it empty leaks sky/floor (black gap at a
-            //     turn two cells out). Fill = what S shows: S's outer wall
-            //     (side.far) → slab; else S's far wall (side.end) → end
-            //     color (the far wall reading as continuing into the new
-            //     hallway); else a dark passage interior.
+            //     depth band, so its mouth IS the side quad wallQuad(d,±1).
+            //     Two layers: that quad is ALWAYS filled with the very dark
+            //     void color (openings are unmistakable at every depth);
+            //     then, if S's far wall (side.end) faces you, a lit rect one
+            //     band deeper is drawn INSIDE the void — it reads as the far
+            //     wall one step into the passage, framed by darkness.
             //   * cell(d).end: wall on that cell's far edge → face(d).
             //   * wallAt(0): forward edge of YOUR cell is blocked → whole
             //     viewport (nose against the wall).
 
             // Internal-corner patches, painted FIRST so the depth loop can
             // overdraw them. When your own cell's side is open (you're
-            // standing at an L-junction with a passage beside you), the side
-            // slab for depth 0 is never drawn and sky/floor leaks through;
-            // patch it with a full-height panel at the passage's back wall.
-            if (!root.wallAt(3) && root.sideWallAt(3)) { // left open, back wall exists
+            // standing at an L-junction with a passage beside you), you get
+            // the same two-layer language: dark full-height opening band at
+            // the frame edge, with the passage's lit back wall (face(1)
+            // sized) framed inside when that back wall exists. The old code
+            // painted the back wall WITHOUT the void when present, and
+            // NOTHING at all when there was no back wall (sky/floor leak).
+            if (!root.wallAt(3)) { // left open
+              var vL = faceRect(1)
+              ctx.fillStyle = gapCol
+              ctx.fillRect(0, 0, vL.x - 1, H)                       // void band
+              if (root.sideWallAt(3)) {                             // lit back wall
+                ctx.fillStyle = colEnd[0]
+                ctx.fillRect(vL.x * 0.55 - 1, vL.y - 1,
+                             vL.x * 0.45 + 1, vL.h + 2)
+              }
+            }
+            if (!root.wallAt(1)) { // right open
+              var vR = faceRect(1)
+              ctx.fillStyle = gapCol
+              ctx.fillRect(vR.x + vR.w + 1, 0, W - vR.x - vR.w - 1, H)
+              if (root.sideWallAt(1)) {
+                ctx.fillStyle = colEnd[0]
+                ctx.fillRect(vR.x + vR.w - 1, vR.y - 1,
+                             (W - vR.x - vR.w) * 0.45 + 1, vR.h + 2)
+              }
+            }
+            if (!root.wallAt(3) && root.sideWallAt(3)) { // left open, back wall exists (legacy noop guard kept for paint order)
               var fL = faceRect(1)
-              ctx.fillStyle = colEnd[0]
-              ctx.fillRect(-1, fL.y - 1, fL.x + 1, fL.h + 2)
+              ctx.fillStyle = gapCol
+              ctx.fillRect(-1, fL.y - 1, 1, fL.h + 2)
             }
             if (!root.wallAt(1) && root.sideWallAt(1)) { // right open, back wall exists
-              var fR = faceRect(1)
-              ctx.fillStyle = colEnd[0]
-              ctx.fillRect(fR.x + fR.w - 1, fR.y - 1, W - (fR.x + fR.w) + 2, fR.h + 2)
+              ctx.fillStyle = gapCol
+              ctx.fillRect(W - 2, faceRect(1).y - 1, 3, faceRect(1).h + 2)
             }
 
             for (var d = 4; d >= 1; d--) {
               var slice = v[d - 1]
               if (!slice.visible) continue
 
-              // (1) side-passage mouth: an open side at depth d shares this
-              // cell's depth band, so its mouth is exactly the side quad a
-              // wall slab would occupy. Fill it with what the side cell S
-              // shows through the opening:
-              //   S's outer wall (side.far)  → slab color (solid wall face)
-              //   S's far wall  (side.end)   → end color (the far wall reads
-              //                                as continuing into the new
-              //                                hallway — the case that used
-              //                                to leak a black gap)
-              //   neither                        → dark passage interior
-              // (Painted before the slabs; slabs only fill the OTHER side,
-              // so no overdraw conflict.)
+              // (1) side-passage mouth: two layers. The mouth quad is always
+              // very dark (an opening reads as darkness at every depth);
+              // then, when the side cell's far wall faces you, the lit back
+              // wall sits one band deeper, framed by the dark mouth.
               if (!slice.left && slice.sideL) {
-                var mcol
-                if (slice.sideL.far)       mcol = colSide[d - 1]
-                else if (slice.sideL.end)  mcol = colEnd[d - 1]
-                else                       mcol = "#15131a"
-                fillQuad(wallQuad(d, -1), mcol)
+                fillQuad(wallQuad(d, -1), gapCol)
+                if (slice.sideL.end && d + 1 <= 4) {
+                  var bkL = faceRect(d + 1)
+                  ctx.fillStyle = colEnd[Math.min(d, 3)]
+                  ctx.fillRect(bkL.x - 1, bkL.y - 1,
+                               Math.max(faceRect(d).x - bkL.x, bkL.w * 0.35) + 1,
+                               bkL.h + 2)
+                }
               }
               if (!slice.right && slice.sideR) {
-                var mcol
-                if (slice.sideR.far)       mcol = colSide[d - 1]
-                else if (slice.sideR.end)  mcol = colEnd[d - 1]
-                else                       mcol = "#15131a"
-                fillQuad(wallQuad(d, 1), mcol)
+                fillQuad(wallQuad(d, 1), gapCol)
+                if (slice.sideR.end && d + 1 <= 4) {
+                  var bkR = faceRect(d + 1), nr2 = faceRect(d)
+                  var bw = Math.max((nr2.x + nr2.w) - (bkR.x + bkR.w),
+                                    bkR.w * 0.35)
+                  ctx.fillStyle = colEnd[Math.min(d, 3)]
+                  ctx.fillRect(bkR.x + bkR.w - 1, bkR.y - 1, bw + 2, bkR.h + 2)
+                }
               }
 
               // (2) middle side slabs
