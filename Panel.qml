@@ -544,23 +544,8 @@ Panel {
             // side column exactly — no sky/floor leak in the opening.
             function paintSidePassage(d, side, sd, term) {
               var B = (sd === 0) ? 4 : Math.min(d + sd, 4)
-              // Occlusion: the corridor's own side slabs (band d..d+1)
-              // cover the passage behind them; only bands d+1..B of a
-              // continuing passage peek through the corridor's open side.
-              var v0 = (d > 0 && ((d === 1 && !root.wallAt(3)) ||
-                    (d > 1 && v[d - 2].visible && !v[d - 2].left))) ? d + 1 : d
-              var v1 = Math.min(d + 1, B - 1)
-              if (v1 > v0)
-                fillQuad(sideQuad(v0, v1, side), colPass[Math.min(d, 3)])
-              // Terminus wall: visible when nothing between it and the
-              // opening is opaque (the corridor slabs are the only opaque
-              // thing; the passage's own bands d..B-1 are its interior).
-              var tvis = true
-              for (var dd = d; dd <= B - 1; dd++) {
-                if (dd === 0) { if (root.wallAt(3)) { tvis = false; break } }
-                else if (!v[dd - 1].visible || v[dd - 1].left) { tvis = false; break }
-              }
-              if (sd >= 1 && tvis) {
+              fillQuad(sideQuad(d, B - 1, side), colPass[Math.min(d, 3)])
+              if (sd >= 1) {
                 var ci = Math.min(B - 1, 3)
                 fillQuad(sideQuad(B - 1, B, side),
                          term !== "none" ? colStair[ci] : colEnd[ci])
@@ -609,14 +594,20 @@ Panel {
               }
             }
 
-            // Pass B: middle-column walls on top. Nearest FIRST so nearer slabs
-            // overdraw the interior of farther side passages (their mouth is the
-            // same physical hallway, seen closer).
+            // Ring r of the side column (sideQuad(r, r+1) = wallQuad(r+1))
+            // is the side wall of corridor cell depth r. Gate: ring 0 =
+            // your own cell (wallAt(±1)); ring r >= 1 = v[r-1].left/right.
+            if (root.wallAt(3)) fillQuad(wallQuad(1, -1), colSide[0])
+            if (root.wallAt(1)) fillQuad(wallQuad(1, 1), colSide[0])
+            for (var n = 1; n < 4; n++) {           // rings 1..3
+              var sl2 = v[n - 1]
+              if (!sl2.visible) continue
+              if (sl2.left) fillQuad(wallQuad(n + 1, -1), colSide[n])
+              if (sl2.right) fillQuad(wallQuad(n + 1, 1), colSide[n])
+            }
             for (var d2 = 1; d2 <= 4; d2++) {
               var slice = v[d2 - 1]
               if (!slice.visible) continue
-              if (slice.left) fillQuad(wallQuad(d2, -1), colSide[d2 - 1])
-              if (slice.right) fillQuad(wallQuad(d2, 1), colSide[d2 - 1])
               if (slice.end) fillFace(d2, colEnd[d2 - 1])
             }
             if (root.wallAt(0)) fillFace(0, colEnd[0])
