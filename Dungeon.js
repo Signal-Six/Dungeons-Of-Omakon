@@ -126,10 +126,40 @@ function hasWall(floor, r, c, d) {
 //   left, right  — middle cell's side edges
 //   end          — middle cell's far edge
 //   sideL.side   — left cell's edge toward the middle (partition)
-//   sideL.end    — left cell's far edge
+//   sideL.end    — left cell's far edge (legacy, == endDist === 1)
 //   sideL.far    — left cell's outer side edge (hardly needed ahead)
+//   sideL.endDist — how many cells of the side passage are visible:
+//                   1 = dead-end alcove (back wall at band d+1), 2..4 =
+//                   hallway continues (end wall at band d+endDist),
+//                   0 = still open past the 4th band (render the dark
+//                   continuation). A grid edge reads as a wall, so a
+//                   passage reaching the floor boundary ends there.
+//   sideL.terminus — feature of the last visible cell in the passage
+//                   (so a staircase where the hallway ends is visible
+//                   through the opening).
 //   (same for sideR)
 var VISTA_DEPTH = 4
+// Trace a side passage one cell off-axis (r,c) in the facing direction.
+// k counts from the side cell itself: k=0 is its own far wall.
+function traceSidePassage(floor, r, c, facing) {
+  var d = facing
+  var lastFeat = floor.nodes[r][c].feature
+  for (var k = 0; k < VISTA_DEPTH; k++) {
+    var rr = r + DR[d] * k, cc = c + DC[d] * k
+    var inB = rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS
+    if (!inB) {
+      // Grid edge: the floor plan ends; treat the boundary as a wall.
+      // Last visible cell is the previous one (defensive — generated
+      // floors always close edge walls before this is reachable).
+      return { endDist: k, terminus: lastFeat }
+    }
+    var node = floor.nodes[rr][cc]
+    if (node[["n", "e", "s", "w"][d]])
+      return { endDist: k + 1, terminus: node.feature }
+    lastFeat = node.feature
+  }
+  return { endDist: 0, terminus: "none" }
+}
 function vista(floor, pos) {
   var out = []
   var row = pos.row, col = pos.col
@@ -159,16 +189,22 @@ function vista(floor, pos) {
     // cell's side is open; the recess walls come from these.
     if (inMaze && !slice.left) {
       var lr = nr + DR[leftD], lc = nc + DC[leftD]
+      var tr = traceSidePassage(floor, lr, lc, pos.facing)
       slice.sideL = {
         side: hasWall(floor, lr, lc, rightD),   // partition back to middle
-        end: hasWall(floor, lr, lc, pos.facing) // far face of the passage
+        end: tr.endDist === 1,                  // dead-end alcove back wall
+        far: hasWall(floor, lr, lc, leftD),     // side cell's own outer wall
+        endDist: tr.endDist, terminus: tr.terminus
       }
     }
     if (inMaze && !slice.right) {
       var rr = nr + DR[rightD], rc = nc + DC[rightD]
+      var tr2 = traceSidePassage(floor, rr, rc, pos.facing)
       slice.sideR = {
         side: hasWall(floor, rr, rc, leftD),
-        end: hasWall(floor, rr, rc, pos.facing)
+        end: tr2.endDist === 1,
+        far: hasWall(floor, rr, rc, rightD),
+        endDist: tr2.endDist, terminus: tr2.terminus
       }
     }
     out.push(slice)
@@ -198,6 +234,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ROWS: ROWS, COLS: COLS, DR: DR, DC: DC,
     rngFromSeed: rngFromSeed, generate: generate, VISTA_DEPTH: VISTA_DEPTH,
-    hasWall: hasWall, vista: vista, move: move, turn: turn
+    hasWall: hasWall, vista: vista, traceSidePassage: traceSidePassage,
+    move: move, turn: turn
   }
 }

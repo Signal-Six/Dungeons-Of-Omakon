@@ -294,14 +294,6 @@ Panel {
 
   readonly property var view: floor ? Dungeon.vista(floor, pos) : []
   function wallAt(rel) { return Dungeon.hasWall(floor, pos.row, pos.col, (pos.facing + rel + 4) % 4) }
-  // Wall on the FAR edge of the side cell at relative direction rel (0 =
-  // forward edge of that side cell, etc.). Used to decide whether an open
-  // side passage has a visible back wall to draw.
-  function sideWallAt(rel) {
-    var d = (pos.facing + rel + 4) % 4
-    var sr = pos.row + Dungeon.DR[d], sc = pos.col + Dungeon.DC[d]
-    return Dungeon.hasWall(floor, sr, sc, pos.facing)
-  }
 
   function move(dir) {
     var np = Dungeon.move(floor, pos, dir)
@@ -315,10 +307,31 @@ Panel {
 
   // Dev trace: dumps the current cell, facing, and vista flags so on-screen
   // renders can be cross-checked against the maze data (journalctl).
+  // One SHORT line per slice — long JSON lines get truncated by journalctl's
+  // line width, which made the old format useless past v1. Press ']' in
+  // game mode.
   function debugVista() {
     var v = Dungeon.vista(floor, pos)
     console.log("omakon pos=" + pos.row + "," + pos.col + " face=" + pos.facing
-      + " wallAt0=" + wallAt(0) + " vista=" + JSON.stringify(v))
+      + " F" + floorNum + " seed=" + floorSeed
+      + " w0=" + (wallAt(0) ? 1 : 0))
+    for (var i = 0; i < v.length; i++) {
+      var s = v[i]
+      console.log("omakon v" + (i + 1)
+        + " " + (s.visible ? "vis" : "hid")
+        + " l=" + (s.left ? 1 : 0)
+        + " r=" + (s.right ? 1 : 0)
+        + " e=" + (s.end ? 1 : 0)
+        + " sL=" + sideShort(s.sideL)
+        + " sR=" + sideShort(s.sideR))
+    }
+  }
+  // Compact side-passage code: <partition><endDist(9=continues)><feature>
+  // e.g. "04d" = open partition, ends 4 cells out on the downstairs.
+  function sideShort(s) {
+    if (!s) return "-"
+    var t = s.terminus === "up" ? "u" : s.terminus === "down" ? "d" : "-"
+    return (s.side ? 1 : 0) + (s.endDist === 0 ? 9 : s.endDist) + t
   }
   // ---- Window ---------------------------------------------------------------
   PanelWindow {
@@ -362,6 +375,11 @@ Panel {
         if (root.popupMode !== "none") root.popupMode = "none"
         else if (root.mode === "menu") root.close()
         else root.close()      // close always saves in game mode
+      }
+
+      // ']' — dump the vista trace (short lines, journalctl-friendly).
+      Keys.onPressed: function(event) {
+        if (root.mode === "game" && event.key === 0x5d) root.debugVista()
       }
 
       Component.onCompleted: {
@@ -469,12 +487,7 @@ Panel {
             }
 
             function wallQuad(d, side) { // side: -1 left, +1 right; d = cell depth
-              var outer = faceRect(d - 1), inner = faceRect(d)
-              if (side < 0)
-                return [ [outer.x, outer.y], [inner.x, inner.y],
-                         [inner.x, inner.y + inner.h], [outer.x, outer.y + outer.h] ]
-              return [ [outer.x + outer.w, outer.y], [inner.x + inner.w, inner.y],
-                       [inner.x + inner.w, inner.y + inner.h], [outer.x + outer.w, outer.y + outer.h] ]
+              return sideQuad(d - 1, d, side)
             }
 
             function fillQuad(pts, color) {
@@ -497,66 +510,114 @@ Panel {
             // Bright close → dark far (classic flashlight falloff).
             var colEnd  = ["#6e6552", "#51493c", "#3c362c", "#2a2620"]
             var colSide = ["#8a7f66", "#605847", "#453f34", "#332e27"]
+            // Side-passage interiors: lit near, receding dark far. The
+            // mouth of an open side is NEVER sky/floor — looking through
+            // it shows the passage's dark, whatever is at its end.
+            var colPass  = ["#282018", "#1c1611", "#13100c", "#0c0a08"]
+            // A staircase where the side passage ends reads warm.
+            var colStair = ["#7a5f2e", "#564522", "#382e19", "#241e12"]
 
-            // Perception rules:
+            // sideQuad(a, b, side): the side-column strip between face
+            // boundaries a and b (a < b, 0..4; boundary 0 = viewport edge).
+            // wallQuad(d, side) is sideQuad(d-1, d, side).
+            function sideQuad(a, b, side) {
+              function ex(bb) {
+                if (bb === 0) return side < 0 ? 0 : W
+                var f = faceRect(bb)
+                return side < 0 ? f.x : f.x + f.w
+              }
+              function ey0(bb) { return bb === 0 ? 0 : faceRect(bb).y }
+              function ey1(bb) { return bb === 0 ? H : faceRect(bb).y + faceRect(bb).h }
+              return [[ex(a), ey0(a)], [ex(b), ey0(b)],
+                      [ex(b), ey1(b)], [ex(a), ey1(a)]]
+            }
+            function wallQuad(d, side) { return sideQuad(d - 1, d, side) }
+
+            // paintSidePassage(d, side, endDist, terminus): the side
+            // passage one cell off-axis at depth d (d=0 = your own cell).
+            // endDist (from the vista trace): 1 = dead-end alcove, 2..4 =
+            // hallway continues that many cells, 0 = still open past the
+            // 4th band (render the dark continuation, no visible terminus).
+            // The passage's MOUTH is the band-d face edge (boundary d);
+            // its interior spans bands d..B-1 and its terminus wall spans
+            // band B = d + endDist (clamped to 4). Together they tile the
+            // side column exactly — no sky/floor leak in the opening.
+            function paintSidePassage(d, side, sd, term) {
+              var B = (sd === 0) ? 4 : Math.min(d + sd, 4)
+              // Occlusion: the corridor's own side slabs (band d..d+1)
+              // cover the passage behind them; only bands d+1..B of a
+              // continuing passage peek through the corridor's open side.
+              var v0 = (d > 0 && ((d === 1 && !root.wallAt(3)) ||
+                    (d > 1 && v[d - 2].visible && !v[d - 2].left))) ? d + 1 : d
+              var v1 = Math.min(d + 1, B - 1)
+              if (v1 > v0)
+                fillQuad(sideQuad(v0, v1, side), colPass[Math.min(d, 3)])
+              // Terminus wall: visible when nothing between it and the
+              // opening is opaque (the corridor slabs are the only opaque
+              // thing; the passage's own bands d..B-1 are its interior).
+              var tvis = true
+              for (var dd = d; dd <= B - 1; dd++) {
+                if (dd === 0) { if (root.wallAt(3)) { tvis = false; break } }
+                else if (!v[dd - 1].visible || v[dd - 1].left) { tvis = false; break }
+              }
+              if (sd >= 1 && tvis) {
+                var ci = Math.min(B - 1, 3)
+                fillQuad(sideQuad(B - 1, B, side),
+                         term !== "none" ? colStair[ci] : colEnd[ci])
+              }
+            }
+
+            // Perception rules (what the canvas may paint, per vista data):
             //   * cell(d).left/right: wall on that cell's side edge → slab
-            //     spanning face(d-1) -> face(d).
-            //   * An OPEN side at depth d shows its side-passage mouth. The
-            //     recess panel (back wall of that passage) is only drawn
-            //     when the view further in that direction would otherwise
-            //     leave naked background — i.e. when the slice at depth d+1
-            //     is not visible or is itself open-ended on that side.
-            //     When the corridor continues, the opening reads naturally
-            //     from the side slabs of the continuing cells.
+            //     spanning face(d-1) -> face(d) (pass B, over the passages).
             //   * cell(d).end: wall on that cell's far edge → face(d).
+            //   * An OPEN side at depth d shows the side passage: dark
+            //     interior + terminus wall from the trace (pass A). The
+            //     partition slabs of the continuing cells (their side
+            //     walls) are painted in pass B over the interior, so a
+            //     hallway behind a turn still reads: mouth → dark →
+            //     inner walls → end wall (or stairs).
             //   * wallAt(0): forward edge of YOUR cell is blocked → whole
             //     viewport (nose against the wall).
 
-            // Internal-corner patches, painted FIRST so the depth loop can
-            // overdraw them. When your own cell's side is open (you're
-            // standing at an L-junction with a passage beside you), the side
-            // slab for depth 0 is never drawn and sky/floor leaks through;
-            // patch it with a full-height panel at the passage's back wall.
-            if (!root.wallAt(3) && root.sideWallAt(3)) { // left open, back wall exists
-              var fL = faceRect(1)
-              ctx.fillStyle = colEnd[0]
-              ctx.fillRect(0, fL.y, fL.x, fL.h)
-            }
-            if (!root.wallAt(1) && root.sideWallAt(1)) { // right open, back wall exists
-              var fR = faceRect(1)
-              ctx.fillStyle = colEnd[0]
-              ctx.fillRect(fR.x + fR.w, fR.y, W - (fR.x + fR.w), fR.h)
+            // Pass A: side-passage interiors + terminus walls. Nearer
+            // depths paint LATER (over deeper ones) — the mouth of a
+            // shallower opening is the same physical hallway, one cell
+            // nearer, and must read on top.
+            for (var d = 4; d >= 0; d--) {
+              if (d === 0) {
+                if (!root.wallAt(3)) {
+                  var ld0 = (root.pos.facing + 3) % 4
+                  var tL0 = Dungeon.traceSidePassage(root.floor,
+                    root.pos.row + Dungeon.DR[ld0], root.pos.col + Dungeon.DC[ld0],
+                    root.pos.facing)
+                  paintSidePassage(0, -1, tL0.endDist, tL0.terminus)
+                }
+                if (!root.wallAt(1)) {
+                  var rd0 = (root.pos.facing + 1) % 4
+                  var tR0 = Dungeon.traceSidePassage(root.floor,
+                    root.pos.row + Dungeon.DR[rd0], root.pos.col + Dungeon.DC[rd0],
+                    root.pos.facing)
+                  paintSidePassage(0, 1, tR0.endDist, tR0.terminus)
+                }
+              } else {
+                var sl = v[d - 1]
+                if (sl.visible && !sl.left && sl.sideL)
+                  paintSidePassage(d, -1, sl.sideL.endDist, sl.sideL.terminus)
+                if (sl.visible && !sl.right && sl.sideR)
+                  paintSidePassage(d, 1, sl.sideR.endDist, sl.sideR.terminus)
+              }
             }
 
-            for (var d = 4; d >= 1; d--) {
-              var slice = v[d - 1]
+            // Pass B: middle-column walls on top. Nearest FIRST so nearer slabs
+            // overdraw the interior of farther side passages (their mouth is the
+            // same physical hallway, seen closer).
+            for (var d2 = 1; d2 <= 4; d2++) {
+              var slice = v[d2 - 1]
               if (!slice.visible) continue
-
-              // (1) side-passage recess: draw the open side cell's own far
-              // wall (its "end" edge). Bounds: the passage mouth at this
-              // depth spans face(d)'s side edge -> face(d+1)'s side edge
-              // (the recess goes ONE band deeper). Bounding the near side
-              // at face(d-1) instead pushes the recess one tile too close
-              // and it swallows the middle column — the timing bug from the
-              // last screenshot.
-              if (!slice.left && slice.sideL && slice.sideL.end && d + 1 <= 4) {
-                var nearL = faceRect(d), farL = faceRect(d + 1)
-                ctx.fillStyle = colEnd[Math.min(d, 3)]
-                ctx.fillRect(farL.x, farL.y, nearL.x - farL.x, farL.h)
-              }
-              if (!slice.right && slice.sideR && slice.sideR.end && d + 1 <= 4) {
-                var nearR = faceRect(d), farR = faceRect(d + 1)
-                ctx.fillStyle = colEnd[Math.min(d, 3)]
-                ctx.fillRect(farR.x + farR.w, farR.y,
-                             (nearR.x + nearR.w) - (farR.x + farR.w), farR.h)
-              }
-
-              // (2) middle side slabs
-              if (slice.left) fillQuad(wallQuad(d, -1), colSide[d - 1])
-              if (slice.right) fillQuad(wallQuad(d, 1), colSide[d - 1])
-
-              // (3) middle end face — always on top within this row
-              if (slice.end) fillFace(d, colEnd[d - 1])
+              if (slice.left) fillQuad(wallQuad(d2, -1), colSide[d2 - 1])
+              if (slice.right) fillQuad(wallQuad(d2, 1), colSide[d2 - 1])
+              if (slice.end) fillFace(d2, colEnd[d2 - 1])
             }
             if (root.wallAt(0)) fillFace(0, colEnd[0])
           }

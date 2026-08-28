@@ -1,0 +1,11 @@
+# Dev/repro harnesses and analysis scratch — not part of the plugin itself.
+find_seed.js
+render_probe.js
+debug.md
+debug_vista.js
+
+# Working data backups / generated datasets.
+equipment.bak
+
+# Journalctl / log dumps.
+*.log
