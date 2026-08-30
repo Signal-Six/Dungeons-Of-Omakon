@@ -19,6 +19,11 @@ function loadCmd(field) {
     + "secret-tool lookup omarchy-plugin b.omakon field " + field;
 }
 
+// NOTE: $1 is the temp file path. The QML caller MUST pass it as a
+// positional argument: ioProc.command = ["bash", "-c", script, "omakon",
+// tempPath]. bash -c with no positional args leaves $1 empty and the
+// redirect fails with "No such file or directory" (2026-08-30 root cause
+// of saves silently never landing in the keyring).
 function storeScript(field) {
   return "path=$1\n"
     + "if ! command -v secret-tool >/dev/null 2>&1; then\n"

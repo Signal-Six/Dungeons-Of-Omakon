@@ -133,7 +133,6 @@ Panel {
   // XDG_RUNTIME_DIR (secret-tool reads stdin to EOF).
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   property string ioTempPath: ""
-  property string ioText: ""
   property string ioField: ""
 
   function newTempPath() {
@@ -153,59 +152,86 @@ Panel {
 
   property string ioStdoutText: ""
 
+  // Jobs wait in ioQueue; one runs at a time. die() fires an archive store
+  // AND a run clear back-to-back — with the old fire-and-restart form the
+  // second start() killed the first mid-write and the death entry was lost.
+  // (Fixed 2026-08-30 alongside the missing-$1 root cause.)
+  property var ioQueue: []
+
   function ioFinished(exitCode) {
-    if (ioField === "boot_run") {
-      var run = Save.parseRun(ioStdoutText)
+    var field = ioField
+    var text = ioStdoutText
+    ioField = ""
+    if (field === "boot_run") {
+      var run = Save.parseRun(text)
       if (run) { applyRun(run); mode = "game" }
       else mode = "menu"
-      ioField = ""
-    } else if (ioField === "archive_load") {
-      archive = Save.parseArchive(ioStdoutText)
-      ioField = ""
+    } else if (field === "archive_load") {
+      archive = Save.parseArchive(text)
     }
-    // saves have no completion handling needs
+    // stores/clears have no completion handling needs
+    ioPump()
   }
 
   function ioStdout(t) { ioStdoutText = t }
 
-  function bootLoad() {
-    ioField = "boot_run"
-    ioStdoutText = ""
-    ioProc.command = ["bash", "-c", Save.loadCmd("run")]
+  function ioPump() {
+    if (ioQueue.length === 0) return
+    if (ioProc.running) return          // busy; onExited → ioFinished pumps
+    ioStart(ioQueue.shift())
+  }
+
+  function ioStart(job) {
+    if (job.kind === "boot_run") {
+      ioField = "boot_run"
+      ioStdoutText = ""
+      ioProc.command = ["bash", "-c", Save.loadCmd("run")]
+    } else if (job.kind === "archive_load") {
+      ioField = "archive_load"
+      ioStdoutText = ""
+      ioProc.command = ["bash", "-c", Save.loadCmd("archive")]
+    } else if (job.kind === "run_clear") {
+      ioField = "run_clear"
+      ioProc.command = ["bash", "-c", Save.clearScript("run")]
+    } else if (job.kind === "store") {
+      // Payload is base64 → temp file → secret-tool stdin. Base64's char
+      // set makes the shell one-liner injection-proof (character names are
+      // user-typed; $ and backticks would survive JSON.stringify inside
+      // double quotes). The temp path rides as bash's positional $1 — a
+      // bare `bash -c '<script>'` has none, which is why saves silently
+      // failed since Phase 4 (2026-08-30).
+      ioField = job.field + "_save"
+      ioTempPath = job.tempPath
+      var b64 = Qt.utf8ToString(Qt.base64Encode(Qt.stringToUtf8(job.text)))
+      ioProc.command = ["bash", "-c",
+        "printf '%s' " + b64 + " | base64 -d > " + ioTempPath + " && "
+        + Save.storeScript(job.field),
+        "omakon", ioTempPath]
+    }
     ioProc.running = true
   }
 
-  function loadArchive() {
-    ioField = "archive_load"
-    ioStdoutText = ""
-    ioProc.command = ["bash", "-c", Save.loadCmd("archive")]
-    ioProc.running = true
-  }
+  function bootLoad() { ioQueue.push({ kind: "boot_run" }); ioPump() }
+
+  function loadArchive() { ioQueue.push({ kind: "archive_load" }); ioPump() }
 
   function saveRun() {
     if (mode !== "game") return
-    var state = currentState()
-    var text = Save.serializeRun(state)
-    ioText = text
-    ioTempPath = newTempPath()
-    ioField = "run_save"
-    ioProc.command = ["bash", "-c",
-      "printf '%s' " + JSON.stringify(text) + " > " + ioTempPath + " && "
-      + Save.storeScript("run")]
-    ioProc.running = true
+    ioQueue.push({ kind: "store", field: "run",
+                   text: Save.serializeRun(currentState()),
+                   tempPath: newTempPath() })
+    ioPump()
   }
 
   function saveArchiveEntry(entry) {
-    var a = Save.appendArchive(archive, entry)
-    archive = a
-    var text = JSON.stringify(a)
-    ioTempPath = newTempPath()
-    ioField = "archive_save"
-    ioProc.command = ["bash", "-c",
-      "printf '%s' " + JSON.stringify(text) + " > " + ioTempPath + " && "
-      + Save.storeScript("archive")]
-    ioProc.running = true
+    archive = Save.appendArchive(archive, entry)
+    ioQueue.push({ kind: "store", field: "archive",
+                   text: JSON.stringify(archive),
+                   tempPath: newTempPath() })
+    ioPump()
   }
+
+  function clearRun() { ioQueue.push({ kind: "run_clear" }); ioPump() }
 
   function currentState() {
     return {
@@ -273,9 +299,7 @@ Panel {
       floor: floorNum, level: heroLevel,
       score: Save.computeScore(currentState())
     })
-    ioField = "run_clear"
-    ioProc.command = ["bash", "-c", Save.clearScript("run")]
-    ioProc.running = true
+    clearRun()      // queue serializes: archive store, then run clear
     mode = "dead"
   }
 
