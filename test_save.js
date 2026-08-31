@@ -24,6 +24,14 @@ check("run round-trip", JSON.stringify(back) === JSON.stringify(JSON.parse(text)
 check("empty run parses null", S.parseRun("") === null && S.parseRun(null) === null)
 check("garbage run parses null", S.parseRun("not json") === null)
 check("wrong version parses null", S.parseRun('{"version":3}') === null)
+check("v4 save still parses (no worn slots)", S.parseRun('{"version":4}') !== null)
+check("v5 run carries worn", S.parseRun(S.serializeRun({
+  name: "x", started: "", hp: 1, hpMax: 1, mp: 1, mpMax: 1, level: 1, xp: 0,
+  stats: null, leftHand: null, rightHand: null,
+  worn: { armor: 1, helmet: 2, amulet: null },
+  pack: new Array(12).fill(null), spells: [], effects: [],
+  floorNum: 1, seed: 1, pos: null, explored: {}
+})).worn.armor === 1)
 
 check("empty archive parses []", S.parseArchive("").length === 0)
 let a = []

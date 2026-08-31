@@ -65,11 +65,123 @@ Panel {
   property int heroMp: 8
   property int heroMpMax: 8
 
-  // ---- Equipment / inventory shells ---------------------------------------
-  property var leftHand: null          // shield-type item card, or null
-  property var rightHand: ({ Name: "Rusty Sword" })   // instance {Name, Enchant?}
+  // ---- Equipment / inventory ----------------------------------------------
+  // Every item has a class (equipment.json "Type") that assigns it to a slot:
+  //   Weapon  → rightHand    Shield  → leftHand
+  //   Armor   → worn.armor   Helmet  → worn.helmet   Amulet → worn.amulet
+  // Items (consumables) have no slot — left-click uses them in place.
+  property var leftHand: null          // shield instance {Name, Enchant?}
+  property var rightHand: ({ Name: "Rusty Sword" })   // weapon instance
+  property var worn: ({ armor: null, helmet: null, amulet: null })
+  readonly property string gold: "#d0b040"
   property var pack: (new Array(12)).fill(null)
   property var spells: []              // discovered spells
+
+  // Slot of a pack index ("" for empty / consumables), resolved against
+  // equipment.json. Worn items keep living in their pack slot (the pack is
+  // the single storage) — the slot properties hold a pointer into it.
+  function slotForIndex(i) {
+    var inst = pack[i]
+    if (!inst) return ""
+    var e = equipmentEntry(inst)
+    if (!e) return ""
+    if (e.Type === "Weapon") return "rightHand"
+    if (e.Type === "Shield") return "leftHand"
+    if (e.Type === "Armor" || e.Type === "Helmet" || e.Type === "Amulet")
+      return "worn." + e.Type.toLowerCase()
+    return ""
+  }
+  function equipmentEntry(inst) {
+    for (var i = 0; i < equipmentTable.length; i++)
+      if (equipmentTable[i].Name === inst.Name) return equipmentTable[i]
+    return null
+  }
+  function isEquipped(i) {
+    var s = slotForIndex(i)
+    if (s === "") return false
+    if (s === "rightHand") return rightHand === pack[i]
+    if (s === "leftHand") return leftHand === pack[i]
+    var part = s.substring(5)   // past "worn."
+    return worn[part] === pack[i]
+  }
+
+  // Left-click on a pack slot: equip/unequip by class, use consumables.
+  function packClick(i) {
+    var inst = pack[i]
+    if (!inst) return
+    var e = equipmentEntry(inst)
+    if (!e) return
+    if (e.Type === "Item") { useConsumable(i); return }
+    if (isEquipped(i)) { unequip(i); return }
+    equip(i)
+  }
+  // Worn slot update. QML bindings need NEW object identity to re-evaluate
+  // (same-object assignment notifies nothing — the markExplored pattern), so
+  // the slots object is rebuilt on every change.
+  function setWornSlot(part, inst) {
+    worn = { armor: (part === "armor" ? inst : worn.armor),
+             helmet: (part === "helmet" ? inst : worn.helmet),
+             amulet: (part === "amulet" ? inst : worn.amulet) }
+  }
+  // Equipping moves the item's slot pointer to this instance; whatever was
+  // in the slot before simply goes unpointed (it stays in the pack).
+  function equip(i) {
+    var s = slotForIndex(i)
+    if (s === "") return
+    if (s === "rightHand") rightHand = pack[i]
+    else if (s === "leftHand") leftHand = pack[i]
+    else setWornSlot(s.substring(5), pack[i])
+    saveRun()
+  }
+  function unequip(i) {
+    var s = slotForIndex(i)
+    if (s === "") return
+    if (s === "rightHand") rightHand = null
+    else if (s === "leftHand") leftHand = null
+    else setWornSlot(s.substring(5), null)
+    saveRun()
+  }
+  // Consumable use. HP/MP restorers and the antidote are live (parsed from
+  // the prose Description, so they track the user's table); the rest need
+  // the Effects.js phase (targeting, stair generation, ...) and are kept —
+  // logged "effect not implemented" — until that lands.
+  function useConsumable(i) {
+    var inst = pack[i]
+    var e = equipmentEntry(inst)
+    var d = (e && e.Description) ? e.Description : ""
+    var m = /Restores (\d+) MP/.exec(d)
+    if (m) {
+      heroMp = Math.min(heroMpMax, heroMp + parseInt(m[1], 10))
+      consumeAt(i); return
+    }
+    m = /Restores (\d+) HP/.exec(d)
+    if (m) {
+      heroHp = Math.min(heroHpMax, heroHp + parseInt(m[1], 10))
+      consumeAt(i); return
+    }
+    if (/cures poison/i.test(d)) {
+      // No movement-tick poison yet: nothing to cure, the item is still used.
+      consumeAt(i); return
+    }
+    console.log("omakon " + inst.Name + " used — effect not implemented")
+  }
+  function consumeAt(i) {
+    var next = pack.slice(); next[i] = null; pack = next
+    saveRun()
+  }
+  // Discard (trash glyph in the item info modal): removes the item from the
+  // pack entirely. If it was equipped, its slot is cleared in the same pass
+  // (one save, not unequip+discard's two).
+  function discardItem(i) {
+    if (i < 0 || i >= pack.length || !pack[i]) return
+    var s = slotForIndex(i)
+    if (s === "rightHand") rightHand = null
+    else if (s === "leftHand") leftHand = null
+    else if (s !== "") setWornSlot(s.substring(5), null)
+    var next = pack.slice(); next[i] = null; pack = next
+    infoSlot = -1
+    saveRun()
+  }
 
   // ---- Combat state (2026-08-31 design: player-first, retaliate-only,
   // ---- no flee; poison is log-only until the movement-tick system lands) ---
@@ -139,6 +251,20 @@ Panel {
     popupMode = (popupMode === mode) ? "none" : mode
   }
 
+  // Item info modal (right-click a pack item): name + prose description.
+  // Right-clicking the same item again (or Escape) closes it; right-clicking
+  // another item swaps the shown item.
+  property int infoSlot: -1
+  function toggleInfo(i) {
+    infoSlot = (infoSlot === i) ? -1 : i
+  }
+  function infoText() {
+    var inst = (infoSlot >= 0 && infoSlot < pack.length) ? pack[infoSlot] : null
+    if (!inst) return ""
+    var e = equipmentEntry(inst)
+    return (e && e.Description) ? e.Description : ""
+  }
+
   // ---- Stats + allocation ---------------------------------------------------
   function openStatsPopup() { popupMode = "stats" }
   function grantXp(xp, sourceLabel) {
@@ -160,35 +286,22 @@ Panel {
   }
   // Combat hooks read the primary stats via combatState().
 
-  // Build the state object Combat.attack() expects — this is the seam that
-  // Phase 5's HUD buttons and Phase 6's status effects will feed through.
-  // First pack instance whose equipment.json Type matches slot ("Armor",
-  // "Helmet", "Amulet") — worn gear. The pack is the single source of
-  // truth for worn items (drops land there; no separate equip screen yet).
-  function wornForSlot(slotType) {
-    for (var i = 0; i < pack.length; i++) {
-      var e = null
-      var inst = pack[i]
-      if (!inst) continue
-      for (var j = 0; j < equipmentTable.length; j++)
-        if (equipmentTable[j].Name === inst.Name) { e = equipmentTable[j]; break }
-      if (e && e.Type === slotType) return inst
-    }
-    return null
-  }
+  // Build the state object Combat.attack() expects. Equipped gear is the
+  // five slots: hands + worn.armor/helmet/amulet (the pack is storage; the
+  // slot pointers decide what counts as equipped).
   function combatState() {
     var rh = resolveInstance(rightHand)
     var lh = resolveInstance(leftHand)
-    var worn = [
-      resolveInstance(wornForSlot("Armor")),
-      resolveInstance(wornForSlot("Helmet")),
-      resolveInstance(wornForSlot("Amulet"))
+    var wornList = [
+      resolveInstance(worn.armor),
+      resolveInstance(worn.helmet),
+      resolveInstance(worn.amulet)
     ].filter(function (x) { return x !== null })
     return {
       str: heroStats.str || 0, dex: heroStats.dex || 0, int: heroStats.int || 0,
       wil: heroStats.wil || 0,
       rightHand: rh, leftHand: lh,
-      worn: worn, effects: heroEffects
+      worn: wornList, effects: heroEffects
     }
   }
   // Attack a monster { dv: int, ... }. Returns Combat.attack's result
@@ -420,6 +533,20 @@ Panel {
 
   function clearRun() { ioQueue.push({ kind: "run_clear" }); ioPump() }
 
+  // Worn slots hold live references into the pack (the pack is storage);
+  // saves persist them as PACK INDICES — exact even with duplicate items in
+  // the pack, which a Name match would resolve ambiguously.
+  function wornAsIndices() {
+    function idx(inst) {
+      if (!inst) return null
+      for (var i = 0; i < pack.length; i++)
+        if (pack[i] === inst) return i
+      return null
+    }
+    return { armor: idx(worn.armor),
+             helmet: idx(worn.helmet),
+             amulet: idx(worn.amulet) }
+  }
   function currentState() {
     return {
       name: runName, started: runStarted,
@@ -427,6 +554,7 @@ Panel {
       level: heroLevel, xp: heroXp,
       stats: heroStats,
       leftHand: leftHand, rightHand: rightHand,
+      worn: wornAsIndices(),
       pack: pack, spells: spells, effects: heroEffects,
       floorNum: floorNum, seed: floorSeed,
       pos: pos, explored: explored
@@ -445,6 +573,37 @@ Panel {
     }
     return null
   }
+  // First pack instance matching Name+Enchant (hands are stored as copies —
+  // JSON round-trips make them distinct objects, so the slot must be
+  // re-pointed at the pack instance to keep isEquipped identity).
+  function handInPack(inst) {
+    if (!inst) return null
+    for (var i = 0; i < pack.length; i++)
+      if (pack[i] && pack[i].Name === inst.Name
+          && (pack[i].Enchant || 0) === (inst.Enchant || 0))
+        return pack[i]
+    return null
+  }
+  // Put a copy of inst into the first empty pack slot and return it.
+  function seedHand(inst) {
+    var next = pack.slice()
+    for (var i = 0; i < next.length; i++)
+      if (!next[i]) { next[i] = inst; pack = next; return inst }
+    console.log("omakon seedHand: pack full, " + inst.Name + " lost")
+    return null
+  }
+  function wornFromSave(w, pack) {
+    // Slot pointers are pack INDICES (see wornAsIndices). v4 saves predate
+    // the worn slots entirely — those runs load with nothing worn, which is
+    // exactly how they played.
+    function ref(i) {
+      i = (typeof i === "number" && i >= 0 && i < pack.length) ? i : -1
+      return i >= 0 ? handFromSave(pack[i]) : null
+    }
+    return { armor: ref(w && w.armor),
+             helmet: ref(w && w.helmet),
+             amulet: ref(w && w.amulet) }
+  }
   function applyRun(run) {
     runName = run.name || "Hero"
     runStarted = run.started || ""
@@ -453,9 +612,21 @@ Panel {
     heroLevel = run.level || 1; heroXp = run.xp || 0
     heroStats = run.stats || Stats.freshStats()
     heroEffects = run.effects || []
-    leftHand = handFromSave(run.leftHand)
-    rightHand = handFromSave(run.rightHand) || ({ Name: "Rusty Sword" })
     pack = run.pack || (new Array(12)).fill(null)
+    // Hands are stored as COPIES; re-point them at the pack instance so
+    // isEquipped() identity holds after the JSON round-trip. A hand not in
+    // the pack (v4 saves, pre-pack-storage) is re-seeded into slot 0 to
+    // keep the invariant "all gear lives in the pack".
+    leftHand = handInPack(handFromSave(run.leftHand))
+    rightHand = handInPack(handFromSave(run.rightHand))
+    if (!leftHand && handFromSave(run.leftHand))
+      leftHand = seedHand(handFromSave(run.leftHand))
+    if (!rightHand) {
+      var rsrc = handFromSave(run.rightHand) || ({ Name: "Rusty Sword" })
+      rightHand = handInPack(rsrc) || seedHand(rsrc)
+    }
+    worn = wornFromSave(run.worn, pack)
+    // Worn gear lives in the pack; hands keep their own copies (v4 layout).
     spells = run.spells || []
     floorNum = run.floorNum || 1
     floorSeed = run.seed
@@ -478,8 +649,13 @@ Panel {
     heroLevel = 1; heroXp = 0
     heroStats = Stats.freshStats()
     leftHand = null
-    rightHand = ({ Name: "Rusty Sword" })
+    // All gear lives in the pack; the slot is a pointer into it. The starter
+    // sword rides in slot 0 and starts equipped — so it can be swapped out
+    // AND re-equipped like any other weapon.
     pack = (new Array(12)).fill(null)
+    pack[0] = ({ Name: "Rusty Sword" })
+    rightHand = pack[0]
+    worn = ({ armor: null, helmet: null, amulet: null })
     combat = null
     combatVictory = false
     spells = []
@@ -717,6 +893,7 @@ Panel {
       focus: true
 
       Keys.onEscapePressed: {
+        if (root.infoSlot >= 0) { root.infoSlot = -1; return }
         if (root.popupMode !== "none") root.popupMode = "none"
         else if (root.mode === "menu") root.close()
         else root.close()      // close always saves in game mode
@@ -1762,7 +1939,7 @@ Panel {
           anchors.bottom: parent.top
           anchors.right: parent.right
           anchors.bottomMargin: 4
-          width: 260
+          width: 320
           height: 250
           color: Color.menu.background
           border.color: Color.menu.border
@@ -1802,16 +1979,45 @@ Panel {
               }
             }
 
-            Repeater {
-              model: [
-                { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
-                { k: "con", label: "CON" }, { k: "int", label: "INT" },
-                { k: "wil", label: "WIL" }
-              ]
-              Text {
-                property var s: modelData
-                text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
-                font.pixelSize: 12; font.family: Style.font.menuFamily; color: Color.menu.text
+            // Stat scores (left) with the equipped-items list (right), below
+            // the EXP bar as requested.
+            Row {
+              width: parent.width
+              Repeater {
+                model: [
+                  { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
+                  { k: "con", label: "CON" }, { k: "int", label: "INT" },
+                  { k: "wil", label: "WIL" }
+                ]
+                Text {
+                  property var s: modelData
+                  text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
+                  font.pixelSize: 12; font.family: Style.font.menuFamily; color: Color.menu.text
+                }
+              }
+              Item { width: 12 }
+              Column {
+                spacing: 1
+                Repeater {
+                  model: [
+                    { label: "Weapon",  inst: root.rightHand },
+                    { label: "Shield",  inst: root.leftHand },
+                    { label: "Armor",   inst: root.worn.armor },
+                    { label: "Helmet",  inst: root.worn.helmet },
+                    { label: "Amulet",  inst: root.worn.amulet }
+                  ]
+                  Text {
+                    property var eq: modelData
+                    width: 140
+                    wrapMode: Text.WordWrap
+                    text: eq.inst
+                      ? eq.label + "  " + (root.weaponLabel(eq.inst))
+                      : eq.label + "  —"
+                    color: eq.inst ? Color.menu.text
+                                   : Qt.darker(Color.menu.text, 1.8)
+                    font.pixelSize: 11; font.family: Style.font.menuFamily
+                  }
+                }
               }
             }
           }
@@ -1949,10 +2155,12 @@ Panel {
               model: 12
               Rectangle {
                 property var item: root.pack[index]
+                property bool equipped: item ? root.isEquipped(index) : false
                 width: 40
                 height: 34
                 color: Color.menu.selectedBackground
-                border.color: Color.menu.border
+                // Equipped gear gets the gold frame (normal border otherwise).
+                border.color: equipped ? root.gold : Color.menu.border
                 border.width: 1
                 Text {
                   anchors.centerIn: parent
@@ -1964,7 +2172,114 @@ Panel {
                   font.family: "JetBrainsMono Nerd Font"
                   font.pixelSize: 14
                 }
+                // "E" badge — bottom-right corner of the equipped item's frame.
+                Text {
+                  visible: equipped
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  anchors.rightMargin: 1
+                  anchors.bottomMargin: 1
+                  text: "E"
+                  color: root.gold
+                  font.family: Style.font.menuFamily
+                  font.bold: true
+                  font.pixelSize: 8
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  // Right-click: item info modal (name + prose), toggling.
+                  // Left-click: equip/unequip by class, or use consumables.
+                  onClicked: function(m) {
+                    if (!item) return
+                    if (m.button === Qt.RightButton) root.toggleInfo(index)
+                    else root.packClick(index)
+                  }
+                }
               }
+            }
+          }
+        }
+      }
+    }
+
+    // ---- Item info modal (right-click a pack item) -----------------------------
+    // Name + the prose description from equipment.json. Right-clicking the
+    // same item again (or Escape) closes it; right-clicking another item
+    // swaps the contents.
+    Rectangle {
+      visible: root.infoSlot >= 0
+        && root.pack[root.infoSlot] !== null
+        && root.mode === "game"
+      anchors.centerIn: parent
+      width: 280
+      height: 170
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 15
+
+      Column {
+        anchors.fill: parent
+        anchors.margins: 10
+        spacing: 8
+
+        // Header: glyph + display name (e.g. "+2 Katana").
+        Row {
+          spacing: 8
+          Text {
+            text: root.infoSlot >= 0
+              ? (root.iconOf(root.pack[root.infoSlot]) || "·") : ""
+            color: Color.menu.text
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 18
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: root.infoSlot >= 0
+              ? (root.weaponLabel(root.pack[root.infoSlot])) : ""
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 13
+          }
+        }
+        Rectangle { width: parent.width; height: 1; color: Color.menu.border }
+
+        Text {
+          width: parent.width
+          wrapMode: Text.WordWrap
+          text: root.infoText()
+          color: Qt.darker(Color.menu.text, 1.3)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 11
+        }
+        Item { height: 1; width: 1 }   // spacer so the row hugs the bottom
+        Row {
+          width: parent.width
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "right-click to close"
+            color: Qt.darker(Color.menu.text, 2.0)
+            font.family: Style.font.menuFamily
+            font.pixelSize: 9
+          }
+          Item { width: 1; height: 1 }
+          // Discard: fa-trash_arrow_up (U+EF90, in the Nerd Font) — removes
+          // the item from the pack, clearing its slot if it was equipped.
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            // U+EF90 = fa-trash_arrow_up (verified present in the Nerd
+            // Font via glyph-reference.html); raw glyph, like the pack icons
+            text: ""
+            color: Qt.darker(Color.menu.text, 1.3)
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 14
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.discardItem(root.infoSlot)
             }
           }
         }

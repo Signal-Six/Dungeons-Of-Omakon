@@ -45,7 +45,7 @@ function clearScript(field) {
 // Serialize the live run state. All numbers/strings only — no functions.
 function serializeRun(s) {
   return JSON.stringify({
-    version: 4,
+    version: 5,
     name: s.name,
     started: s.started,
     hp: s.hp, hpMax: s.hpMax,
@@ -53,6 +53,9 @@ function serializeRun(s) {
     level: s.level, xp: s.xp,
     stats: s.stats,
     leftHand: s.leftHand, rightHand: s.rightHand,
+    // Worn armor/helmet/amulet: pack INDEX of the equipped instance (the
+    // pack is storage; hands keep their own copies in the v4 layout).
+    worn: s.worn,
     pack: s.pack, spells: s.spells, effects: s.effects,
     floorNum: s.floorNum,
     seed: s.seed,
@@ -66,7 +69,10 @@ function parseRun(text) {
   try {
     var o = JSON.parse(text);
     if (!o || typeof o !== "object") return null;
-    if (o.version !== 4) return null;
+    // v5 (2026-08-31) adds the worn armor/helmet/amulet slots. v4 saves
+    // (hands-only) still load — applyRun() fills worn from the missing
+    // field, which is correct for how those runs played.
+    if (o.version !== 5 && o.version !== 4) return null;
     return o;
   } catch (e) { return null; }
 }
