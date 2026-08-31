@@ -38,7 +38,7 @@
     "PoisonDamage": null,
     "Name": "Shambler",
     "Depth": 1,
-    "Icon": "󰳗",
+    "Icon": "U+f0f02",
     "Color": "white"
   },
   {
@@ -94,7 +94,7 @@
     "PoisonDamage": null,
     "Name": "Goblin",
     "Depth": 3,
-    "Icon": "󰢚",
+    "Icon": "U+f0401",
     "Color": "white"
   },
   {
@@ -108,7 +108,7 @@
     "PoisonDamage": null,
     "Name": "Slider",
     "Depth": 3,
-    "Icon": "󰖶",
+    "Icon": "U+f10cb",
     "Color": "white"
   },
   {
@@ -136,7 +136,7 @@
     "PoisonDamage": null,
     "Name": "Orc",
     "Depth": 5,
-    "Icon": "󰓥",
+    "Icon": "U+f1006",
     "Color": "white"
   },
   {
@@ -150,7 +150,7 @@
     "PoisonDamage": null,
     "Name": "Goblin Savage",
     "Depth": 5,
-    "Icon": "󰢚",
+    "Icon": "U+f0401",
     "Color": "yellow"
   },
   {
@@ -164,7 +164,7 @@
     "PoisonDamage": null,
     "Name": "Killmonger",
     "Depth": 5,
-    "Icon": "󰞇",
+    "Icon": "U+ee48",
     "Color": "white"
   },
   {
@@ -178,7 +178,7 @@
     "PoisonDamage": null,
     "Name": "Lesser Yokai",
     "Depth": 5,
-    "Icon": "󰊠",
+    "Icon": "U+eee6",
     "Color": "white"
   },
   {
@@ -206,7 +206,7 @@
     "PoisonDamage": null,
     "Name": "Violent Orc",
     "Depth": 7,
-    "Icon": "󰓥",
+    "Icon": "U+f1006",
     "Color": "yellow"
   },
   {
@@ -220,7 +220,7 @@
     "PoisonDamage": null,
     "Name": "Goblin Warlock",
     "Depth": 7,
-    "Icon": "󰢚",
+    "Icon": "U+f1477",
     "Color": "yellow"
   },
   {
@@ -249,7 +249,7 @@
     "Name": "Wraith",
     "Depth": 10,
     "Icon": "󰊠",
-    "Color": "white"
+    "Color": "purple"
   },
   {
     "HP": 50,
@@ -262,7 +262,7 @@
     "PoisonDamage": null,
     "Name": "Archaic Hunter",
     "Depth": 10,
-    "Icon": "󱡁",
+    "Icon": "U+ef07",
     "Color": "white"
   },
   {
@@ -304,7 +304,7 @@
     "PoisonDamage": null,
     "Name": "Yurei",
     "Depth": 12,
-    "Icon": "󰊠",
+    "Icon": "U+eee6",
     "Color": "red"
   },
   {
@@ -318,7 +318,7 @@
     "PoisonDamage": null,
     "Name": "Orc Berserker",
     "Depth": 15,
-    "Icon": "󰓥",
+    "Icon": "U+f1006",
     "Color": "red"
   },
   {
@@ -332,7 +332,7 @@
     "PoisonDamage": null,
     "Name": "Darkstalker",
     "Depth": 15,
-    "Icon": "󰈉",
+    "Icon": "U+f0825",
     "Color": "white"
   },
   {
@@ -388,7 +388,7 @@
     "PoisonDamage": null,
     "Name": "Yeti",
     "Depth": 20,
-    "Icon": "󰜗",
+    "Icon": "U+f0ec0",
     "Color": "white"
   },
   {
@@ -402,7 +402,7 @@
     "PoisonDamage": null,
     "Name": "Hobbit Slingshotter",
     "Depth": 22,
-    "Icon": "󱡁",
+    "Icon": "U+ed5e",
     "Color": "yellow"
   },
   {
@@ -416,7 +416,7 @@
     "PoisonDamage": null,
     "Name": "Drath",
     "Depth": 22,
-    "Icon": "󰂹",
+    "Icon": "U+f03d2",
     "Color": "white"
   },
   {
@@ -444,7 +444,7 @@
     "PoisonDamage": null,
     "Name": "Metal Man",
     "Depth": 25,
-    "Icon": "󰚩",
+    "Icon": "U+ee0d",
     "Color": "white"
   },
   {
@@ -514,7 +514,7 @@
     "PoisonDamage": null,
     "Name": "Wallrunner",
     "Depth": 30,
-    "Icon": "󰖟",
+    "Icon": "U+ef94",
     "Color": "white"
   },
   {
@@ -542,7 +542,7 @@
     "PoisonDamage": 10,
     "Name": "Hobbit Sniper",
     "Depth": 30,
-    "Icon": "󱡁",
+    "Icon": "U+f00d3",
     "Color": "red"
   },
   {
@@ -556,7 +556,7 @@
     "PoisonDamage": null,
     "Name": "Elven Deathtrancer",
     "Depth": 32,
-    "Icon": "󱡄",
+    "Icon": "U+f064c",
     "Color": "white"
   },
   {
@@ -570,7 +570,7 @@
     "PoisonDamage": null,
     "Name": "Hoarfrost Yeti",
     "Depth": 33,
-    "Icon": "󰜗",
+    "Icon": "U+f0ec0",
     "Color": "yellow"
   },
   {
@@ -584,7 +584,7 @@
     "PoisonDamage": null,
     "Name": "Rock Warden",
     "Depth": 35,
-    "Icon": "󰒘",
+    "Icon": "U+f01c8",
     "Color": "white"
   },
   {
@@ -598,7 +598,7 @@
     "PoisonDamage": null,
     "Name": "Dwarven Slayer",
     "Depth": 35,
-    "Icon": "󰣪",
+    "Icon": "U+ef44",
     "Color": "white"
   },
   {
@@ -640,7 +640,7 @@
     "PoisonDamage": 20,
     "Name": "Rotting Treant",
     "Depth": 39,
-    "Icon": "󰔱",
+    "Icon": "U+f0405",
     "Color": "white"
   },
   {
@@ -654,7 +654,7 @@
     "PoisonDamage": null,
     "Name": "Mecha Ogre",
     "Depth": 40,
-    "Icon": "󰒓",
+    "Icon": "U+f11f7",
     "Color": "white"
   },
   {
@@ -696,7 +696,7 @@
     "PoisonDamage": null,
     "Name": "High Elf Wizard",
     "Depth": 41,
-    "Icon": "󱡄",
+    "Icon": "U+ef01",
     "Color": "red"
   },
   {
@@ -710,7 +710,7 @@
     "PoisonDamage": null,
     "Name": "Dwarven Madman",
     "Depth": 41,
-    "Icon": "󰣪",
+    "Icon": "U+ef44",
     "Color": "red"
   },
   {
@@ -766,7 +766,7 @@
     "PoisonDamage": null,
     "Name": "Mecha Strider",
     "Depth": 45,
-    "Icon": "󰒓",
+    "Icon": "U+f0b46",
     "Color": "white"
   },
   {
@@ -795,7 +795,7 @@
     "Name": "Crystal Golem",
     "Depth": 48,
     "Icon": "󰇈",
-    "Color": "white"
+    "Color": "blue"
   },
   {
     "HP": 2500,
@@ -808,7 +808,7 @@
     "PoisonDamage": null,
     "Name": "Hyperborean Timestalker",
     "Depth": 49,
-    "Icon": "󰥔",
+    "Icon": "U+f0efc",
     "Color": "white"
   },
   {
@@ -822,7 +822,7 @@
     "PoisonDamage": null,
     "Name": "Mecha Yeti",
     "Depth": 49,
-    "Icon": "󰜗",
+    "Icon": "U+f0ec0",
     "Color": "red"
   },
   {
@@ -836,7 +836,7 @@
     "PoisonDamage": null,
     "Name": "Omakron",
     "Depth": 50,
-    "Icon": "󰆥",
+    "Icon": "U+ed64",
     "Color": "red"
   }
 ]

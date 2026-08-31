@@ -8,6 +8,10 @@ import "Dungeon.js" as Dungeon
 import "Save.js" as Save
 import "Combat.js" as Combat
 import "Stats.js" as Stats
+import "Monsters.js" as Monsters
+import "Drops.js" as Drops
+import "Dice.js" as Dice
+import "CombatLoop.js" as CombatLoop
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -63,9 +67,70 @@ Panel {
 
   // ---- Equipment / inventory shells ---------------------------------------
   property var leftHand: null          // shield-type item card, or null
-  property var rightHand: ({ icon: "†", name: "Rusty Sword" })
+  property var rightHand: ({ Name: "Rusty Sword" })   // instance {Name, Enchant?}
   property var pack: (new Array(12)).fill(null)
   property var spells: []              // discovered spells
+
+  // ---- Combat state (2026-08-31 design: player-first, retaliate-only,
+  // ---- no flee; poison is log-only until the movement-tick system lands) ---
+  property var monsterTable: []        // loaded from monsters.json at boot
+  property var equipmentTable: []      // loaded from equipment.json at boot
+  property var combat: null            // CombatLoop.newEncounter() object, or null
+  property int combatLogVersion: 0     // bump → combatView recomputes + log scrolls
+  // QML can't observe deep JS-object mutation: `combat.log.push(...)` doesn't
+  // re-evaluate bindings on `root.combat`. combatView is a fresh snapshot
+  // rebuilt on every bumpCombatLog() — the expression references
+  // combatLogVersion so that counter is a binding dependency.
+  readonly property var combatView: {
+    var v = combatLogVersion           // read = binding dependency
+    if (!combat) return null
+    void v
+    var m = combat.monster
+    return {
+      name: m.name, icon: m.icon, color: m.color,
+      hp: Math.max(0, m.hp), hpMax: m.hpMax,
+      log: combat.log.slice()
+    }
+  }
+
+  // Resolve a pack/hand instance {Name, Enchant?} against equipment.json:
+  // stats become {acc, dmg, def, enchanted}; the "infinite" strings in
+  // equipment.json become JS Infinity (Combat's comparisons handle it);
+  // Icon (single Nerd Font glyph char) and a display name ("+2 Katana")
+  // ride along for the UI.
+  function resolveInstance(inst) {
+    if (!inst) return null
+    var e = null
+    for (var i = 0; i < equipmentTable.length; i++)
+      if (equipmentTable[i].Name === inst.Name) { e = equipmentTable[i]; break }
+    if (!e) return null
+    var ench = (typeof inst.Enchant === "number") ? inst.Enchant : 0
+    function v(x) { return (x === "infinite") ? Infinity : x }
+    var name = e.Name
+    if (ench > 0) name = "+" + ench + " " + name
+    return {
+      // firstCodePoint, not [0]: equipment glyphs are astral PUA and [0]
+      // would yield a lone surrogate (tofu).
+      icon: firstCodePoint(e.Icon || "") || "·",
+      name: name,
+      acc: (typeof e.Accuracy === "number" || e.Accuracy === "infinite")
+           ? v(e.Accuracy) + ench : null,
+      dmg: (typeof e.Damage === "number" || e.Damage === "infinite")
+           ? v(e.Damage) + ench : null,
+      def: (typeof e.Defense === "number") ? e.Defense + ench : null,
+      enchanted: ench > 0
+    }
+  }
+  function weaponLabel(inst) {
+    var r = resolveInstance(inst)
+    return (r && r.name) ? r.name : "your fists"
+  }
+  // Null-safe glyph accessor for the UI: "" when the table isn't loaded yet
+  // or the entry is missing, so Text nodes can fall back to their own glyph.
+  function iconOf(inst) {
+    var r = resolveInstance(inst)
+    return (r && r.icon) ? r.icon : ""
+  }
 
   property string popupMode: "none"    // "none" | "spells" | "inventory" | "stats" | "alloc"
   function togglePopup(mode) {
@@ -95,12 +160,33 @@ Panel {
 
   // Build the state object Combat.attack() expects — this is the seam that
   // Phase 5's HUD buttons and Phase 6's status effects will feed through.
+  // First pack instance whose equipment.json Type matches slot ("Armor",
+  // "Helmet", "Amulet") — worn gear. The pack is the single source of
+  // truth for worn items (drops land there; no separate equip screen yet).
+  function wornForSlot(slotType) {
+    for (var i = 0; i < pack.length; i++) {
+      var e = null
+      var inst = pack[i]
+      if (!inst) continue
+      for (var j = 0; j < equipmentTable.length; j++)
+        if (equipmentTable[j].Name === inst.Name) { e = equipmentTable[j]; break }
+      if (e && e.Type === slotType) return inst
+    }
+    return null
+  }
   function combatState() {
+    var rh = resolveInstance(rightHand)
+    var lh = resolveInstance(leftHand)
+    var worn = [
+      resolveInstance(wornForSlot("Armor")),
+      resolveInstance(wornForSlot("Helmet")),
+      resolveInstance(wornForSlot("Amulet"))
+    ].filter(function (x) { return x !== null })
     return {
       str: heroStats.str || 0, dex: heroStats.dex || 0, int: heroStats.int || 0,
       wil: heroStats.wil || 0,
-      rightHand: rightHand, leftHand: leftHand,
-      worn: [], effects: heroEffects
+      rightHand: rh, leftHand: lh,
+      worn: worn, effects: heroEffects
     }
   }
   // Attack a monster { dv: int, ... }. Returns Combat.attack's result
@@ -165,6 +251,79 @@ Panel {
     blockWrites: true
     printErrors: false
   }
+
+  // Static data tables — read once at boot from the plugin source dir.
+  // FileView.path wants an absolute path in this shell build; __sourceDir
+  // is injected by the plugin registry (same trick Kaomarchy uses).
+  readonly property string dataDir:
+    (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
+    + "/omarchy/plugins/b.omakon"
+  // monsters.json icons arrive in mixed notation while the table is being
+  // curated: either the raw glyph char ("󰳗") or a "U+hex" reference
+  // ("U+f0f02"). Normalize both to the raw char so every consumer (the
+  // combat overlay, the automap, future bestiary) can bind Text directly.
+  //
+  // Deliberately conservative: no String.fromCodePoint, no regex — the
+  // surrogate pair is built by hand so this works on any JS engine level.
+  function hexVal(c) {
+    var lo = "0123456789abcdef"
+    var up = "0123456789ABCDEF"
+    var i = lo.indexOf(c)
+    if (i >= 0) return i
+    i = up.indexOf(c)
+    if (i >= 0) return i
+    return -1
+  }
+  // "U+f0f02" -> the single-char glyph (surrogate pair when needed).
+  // Returns "" if it isn't a well-formed "U+hex" token.
+  function codePointToChar(cp) {
+    if (cp <= 0xFFFF) return String.fromCharCode(cp)
+    cp -= 0x10000
+    var hi = 0xD800 + Math.floor(cp / 0x400)
+    var lo = 0xDC00 + (cp % 0x400)
+    return String.fromCharCode(hi, lo)
+  }
+  // First FULL codepoint of a string. charAt(0) alone returns only the high
+  // surrogate for any glyph above U+FFFF (our md- PUA icons), which is a
+  // lone surrogate -> tofu. So rejoin a surrogate pair when present.
+  function firstCodePoint(s) {
+    if (!s.length) return ""
+    var c0 = s.charCodeAt(0)
+    if (c0 >= 0xD800 && c0 <= 0xDBFF && s.length > 1) {
+      var c1 = s.charCodeAt(1)
+      if (c1 >= 0xDC00 && c1 <= 0xDFFF) return s.substring(0, 2)
+    }
+    return s.charAt(0)
+  }
+  function normalizeIcon(icon) {
+    var s = String(icon == null ? "" : icon)
+    // U+hex token? First char 'U', second '+', then 1-6 hex digits.
+    if (s.length >= 3 && s.charCodeAt(0) === 0x55 /*U*/ && s.charCodeAt(1) === 0x2b /*+*/) {
+      var hexPart = s.substring(2)
+      if (hexPart.length >= 1 && hexPart.length <= 6) {
+        var allHex = true
+        for (var i = 0; i < hexPart.length; i++)
+          if (hexVal(hexPart.charAt(i)) < 0) { allHex = false; break }
+        if (allHex) return codePointToChar(parseInt(hexPart, 16))
+      }
+    }
+    // Raw glyph (already a character): take the first full codepoint so
+    // astral md- icons keep their surrogate pair.
+    return firstCodePoint(s)
+  }
+  function loadMonsters(text) {
+    var rows = JSON.parse(text)
+    for (var i = 0; i < rows.length; i++)
+      rows[i].Icon = normalizeIcon(rows[i].Icon)
+    monsterTable = rows
+    console.log("omakon loaded " + monsterTable.length + " monsters")
+  }
+  function loadEquipment(text) {
+    equipmentTable = JSON.parse(text)
+    console.log("omakon loaded " + equipmentTable.length + " equipment entries")
+  }
+  FileView { id: monsterFile; path: root.dataDir + "/monsters.json"; onLoaded: root.loadMonsters(text()) }
+  FileView { id: equipFile;   path: root.dataDir + "/equipment.json"; onLoaded: root.loadEquipment(text()) }
 
   property string ioStdoutText: ""
 
@@ -272,6 +431,18 @@ Panel {
     }
   }
 
+  // Hands in saves may predate the instance format (old: {icon, name});
+  // normalize to {Name} so resolveInstance can always find the entry.
+  function handFromSave(h) {
+    if (!h) return null
+    if (typeof h.Name === "string") return h
+    if (typeof h.name === "string") {
+      var out = { Name: h.name }
+      if (typeof h.Enchant === "number") out.Enchant = h.Enchant
+      return out
+    }
+    return null
+  }
   function applyRun(run) {
     runName = run.name || "Hero"
     runStarted = run.started || ""
@@ -280,8 +451,8 @@ Panel {
     heroLevel = run.level || 1; heroXp = run.xp || 0
     heroStats = run.stats || Stats.freshStats()
     heroEffects = run.effects || []
-    leftHand = run.leftHand || null
-    rightHand = run.rightHand || ({ icon: "†", name: "Rusty Sword" })
+    leftHand = handFromSave(run.leftHand)
+    rightHand = handFromSave(run.rightHand) || ({ Name: "Rusty Sword" })
     pack = run.pack || (new Array(12)).fill(null)
     spells = run.spells || []
     floorNum = run.floorNum || 1
@@ -290,6 +461,7 @@ Panel {
     pos = run.pos || ({ row: floor.start.row, col: floor.start.col, facing: 0 })
     explored = run.explored || ({})
     markExplored(pos.row, pos.col)
+    combat = null    // fights are not persisted
   }
 
   // ---- Run lifecycle transitions ----------------------------------------------
@@ -303,8 +475,9 @@ Panel {
     heroLevel = 1; heroXp = 0
     heroStats = Stats.freshStats()
     leftHand = null
-    rightHand = ({ icon: "†", name: "Rusty Sword" })
+    rightHand = ({ Name: "Rusty Sword" })
     pack = (new Array(12)).fill(null)
+    combat = null
     spells = []
     floorNum = 1
     floorSeed = (Math.random() * 0x7fffffff) | 0
@@ -346,14 +519,121 @@ Panel {
   function wallAt(rel) { return Dungeon.hasWall(floor, pos.row, pos.col, (pos.facing + rel + 4) % 4) }
 
   function move(dir) {
+    if (combat) return                  // encounter in progress: movement locked
     var np = Dungeon.move(floor, pos, dir)
     if (np.row !== pos.row || np.col !== pos.col) {
       pos = np
       markExplored(np.row, np.col)
+      trySpawnEncounter()
     }
     debugVista()
   }
-  function turn(rel) { pos = Dungeon.turn(pos, rel); debugVista() }
+  function turn(rel) {
+    if (combat) return
+    pos = Dungeon.turn(pos, rel); debugVista()
+  }
+
+  // ---- Encounter lifecycle --------------------------------------------------
+  // Called after every successful tile change. Monsters.rollSpawn returns a
+  // monsters.json row or null per the agreed spawn formula.
+  function trySpawnEncounter() {
+    if (monsterTable.length === 0) return   // table not loaded yet (boot race)
+    var row = Monsters.rollSpawn(monsterTable, floorNum, Math.random)
+    if (!row) return
+    combat = CombatLoop.newEncounter(row)
+    bumpCombatLog()
+  }
+  // Dev hotkey (paired with ']' vista trace): force an encounter against the
+  // first Depth-1 monster in the table (the Rat) so the combat loop is
+  // testable without walking for a 0.1% spawn.
+  function debugSpawnEncounter() {
+    if (combat) return
+    var row = null
+    for (var i = 0; i < monsterTable.length; i++)
+      if (monsterTable[i].Depth === 1) { row = monsterTable[i]; break }
+    if (!row) return
+    combat = CombatLoop.newEncounter(row)
+    console.log("omakon DEBUG forced encounter: " + row.Name)
+    bumpCombatLog()
+  }
+  function bumpCombatLog() {
+    combatLogVersion++
+    // Pin the log to the newest line. combatLog is a component-scope id,
+    // reachable from root functions.
+    if (combatLog) combatLog.positionViewAtEnd()
+  }
+
+  // Player acts (the left-card click). Strike first; if the monster
+  // survives, it retaliates in the same click (design: player-first,
+  // retaliate-only — the "round" resolves in one action).
+  property bool combatActed: false   // debug: flips on click to change glyph color
+
+  function combatAct() {
+    if (!combat || combat.over) return
+    combatActed = true
+    // Inline CombatLoop.round logic — QML can't call imported JS module functions
+    var state = combatState()
+    var wlabel = weaponLabel(rightHand)
+    // player strike
+    var res = Combat.attack(state, combat.monster)
+    if (!res.hit) {
+      combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (" + res.accuracy + " vs DV " + res.dv + ")")
+    } else {
+      var dmg = res.damage
+      combat.log.push("You strike the " + combat.monster.name + " with " + wlabel + " for " + dmg + " damage (" + res.baseDamage + "+" + res.d4 + ")!")
+      combat.monster.hp -= dmg
+      if (combat.monster.hp <= 0) {
+        combat.log.push("The " + combat.monster.name + " dies!")
+        combat.over = true
+        combat.won = true
+      }
+    }
+    // monster retaliation (if not dead)
+    if (!combat.over) {
+      var accRoll = Dice.roll(combat.monster.accExpr)
+      var mres = Combat.defend(state, { acc: accRoll, dmg: 0, isMagic: combat.monster.isMagic })
+      if (mres.hit) {
+        var mdmg = Dice.roll(combat.monster.damageExpr)
+        combat.log.push("The " + combat.monster.name + " attacks you for " + mdmg + " damage!")
+        heroHp = Math.max(0, heroHp - mdmg)
+        if (heroHp <= 0) {
+          die()
+          return
+        }
+      } else {
+        combat.log.push("The " + combat.monster.name + " attacks — misses.")
+      }
+    }
+    // kill rewards
+    if (combat.over && combat.won) {
+      grantXp(combat.monster.xp, combat.monster.name)
+      var drop = Drops.rollDrop(equipmentTable, floorNum, Math.random)
+      if (drop) {
+        combat.log.push("It drops a " + drop.Name + (drop.Enchant ? " (+" + drop.Enchant + ")" : "") + ".")
+        giveLoot(drop)
+      }
+    }
+    bumpCombatLog()
+    if (combat.over) {
+      combat = null
+      saveRun()
+    }
+  }
+
+  // Put a dropped instance into the first empty pack slot. If the pack is
+  // full the item is lost (logged so the player knows what they missed).
+  function giveLoot(drop) {
+    if (!drop) return
+    for (var i = 0; i < pack.length; i++) {
+      if (!pack[i]) {
+        var next = pack.slice()
+        next[i] = drop
+        pack = next
+        return
+      }
+    }
+    if (combat) combat.log.push("Your pack is full — the " + drop.Name + " is left behind.")
+  }
 
   // Dev trace: dumps the current cell, facing, and vista flags so on-screen
   // renders can be cross-checked against the maze data (journalctl).
@@ -428,8 +708,10 @@ Panel {
       }
 
       // ']' — dump the vista trace (short lines, journalctl-friendly).
+      // 'f' — (dev) force a Depth-1 encounter so the combat loop is testable.
       Keys.onPressed: function(event) {
-        if (root.mode === "game" && event.key === 0x5d) root.debugVista()
+        if (root.mode === "game" && event.key === 0x5d /* ] */) root.debugVista()
+        if (root.mode === "game" && event.key === Qt.Key_F) root.debugSpawnEncounter()
       }
 
       Component.onCompleted: {
@@ -834,6 +1116,165 @@ Panel {
             }
           }
         }
+        // ---- Combat overlay (2026-08-31 design) ------------------------------
+        // Two panels over the viewport: LEFT = monster card (the attack
+        // target — click the glyph to act), RIGHT = scrolling combat log.
+        // z:50 keeps them above the automap and dissolve layer.
+        Rectangle {
+          id: combatOverlay
+          visible: root.combatView !== null
+          anchors.fill: parent
+          color: "transparent"
+          z: 50
+
+          // Dim the scene under the fight.
+          Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.55)
+            enabled: false
+          }
+
+          // LEFT — monster card: glyph, name, HP bar. Clicking the card
+          // acts with the current right-hand weapon.
+          Rectangle {
+            id: monsterCard
+            width: 150
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+            color: Color.menu.background
+            border.color: Color.menu.border
+            border.width: 2
+
+            readonly property string tierColor: {
+              if (!root.combatView) return Color.menu.text
+              var c = root.combatView.color
+              return c === "red" ? "#e06060"
+                   : c === "yellow" ? "#e0c050" : Color.menu.text
+            }
+
+            Column {
+              anchors.centerIn: parent
+              spacing: 6
+              Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "ENCOUNTER"
+                color: Qt.darker(Color.menu.text, 1.6)
+                font.family: Style.font.menuFamily
+                font.bold: true
+                font.pixelSize: 10
+              }
+              // Monster glyph — the target. Nerd Font pinned: PUA glyphs
+              // vanish if OMARCHY_MENU_FONT points elsewhere.
+              Text {
+                id: monsterGlyph
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.combatView ? (root.combatView.icon || "?") : "?"
+                color: root.combatActed ? "#ff00ff" : monsterCard.tierColor
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 56
+              }
+              Text {
+                id: monsterName
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.combatView ? root.combatView.name : ""
+                color: Color.menu.text
+                font.family: Style.font.menuFamily
+                font.bold: true
+                font.pixelSize: 13
+              }
+              // Monster HP bar.
+              Rectangle {
+                width: monsterCard.width - 28
+                height: 12
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "transparent"
+                border.color: Color.menu.border
+                border.width: 1
+                Rectangle {
+                  anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                  width: root.combatView
+                    ? (root.combatView.hp / root.combatView.hpMax) * (parent.width - 2) : 0
+                  color: Qt.darker(monsterCard.tierColor, 1.3)
+                }
+                Text {
+                  anchors.centerIn: parent
+                  text: root.combatView
+                    ? root.combatView.hp + "/" + root.combatView.hpMax : ""
+                  font.pixelSize: 9; font.family: Style.font.menuFamily
+                  color: Color.menu.text
+                }
+              }
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.bottom: parent.bottom
+              anchors.bottomMargin: 10
+              text: "CLICK TO ATTACK"
+              color: Qt.darker(Color.menu.text, 1.8)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 9
+            }
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              z: 10
+              onClicked: {
+                console.log("omakon DEBUG monsterCard clicked")
+                root.combatAct()
+              }
+            }
+          }
+
+          // RIGHT — combat log, newest line at the bottom.
+          Rectangle {
+            width: 230
+            height: 240
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+            color: Qt.rgba(0.04, 0.05, 0.08, 0.96)
+            border.color: Color.menu.border
+            border.width: 2
+
+            Text {
+              id: combatLogTitle
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.topMargin: 8
+              anchors.leftMargin: 8
+              text: "COMBAT LOG"
+              color: Qt.darker(Color.menu.text, 1.4)
+              font.family: Style.font.menuFamily
+              font.bold: true
+              font.pixelSize: 10
+            }
+            ListView {
+              id: combatLog
+              anchors.top: combatLogTitle.bottom
+              anchors.bottom: parent.bottom
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.margins: 8
+              spacing: 3
+              model: root.combatView ? root.combatView.log : []
+              clip: true
+              delegate: Text {
+                width: combatLog.width
+                text: modelData
+                color: /dies!|slain/.test(modelData)
+                  ? "#e06060" : Color.menu.text
+                font.family: Style.font.menuFamily
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+              }
+            }
+          }
+        }
+
         // ---- Pixel-dissolve transition into the next floor -------------------
         // Active while root.descending: a 26x20 grid of black pixels whose
         // opacity animates 0 -> 1 in pseudo-random order over ~500ms, the
@@ -1166,9 +1607,10 @@ Panel {
               border.width: 2
               Text {
                 anchors.centerIn: parent
-                text: root.leftHand ? root.leftHand.icon : "⌾"
+                text: root.leftHand
+                  ? (root.iconOf(root.leftHand) || "·") : "⌾"
                 color: root.leftHand ? Color.menu.text : Qt.darker(Color.menu.text, 2.2)
-                font.family: Style.font.menuFamily
+                font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: 18
               }
               MouseArea {
@@ -1217,9 +1659,12 @@ Panel {
               border.width: 2
               Text {
                 anchors.centerIn: parent
-                text: root.rightHand ? root.rightHand.icon : "⚔"
+                // U+2694 (⚔) is NOT in the Nerd Font — falls back per glyph.
+                // Empty hand shows the md-sword placeholder instead.
+                text: root.rightHand
+                  ? (root.iconOf(root.rightHand) || "󰓥") : "󰓥"
                 color: Color.menu.text
-                font.family: Style.font.menuFamily
+                font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: 18
               }
               MouseArea {
@@ -1497,9 +1942,12 @@ Panel {
                 border.width: 1
                 Text {
                   anchors.centerIn: parent
-                  text: item ? item.icon : "·"
+                  // Icon field on equipment.json is "<glyph> name"; take the
+                  // glyph char. Nerd Font pinned (PUA glyphs).
+                  text: item
+                    ? (root.iconOf(item) || "·") : "·"
                   color: item ? Color.menu.text : Qt.darker(Color.menu.text, 2.4)
-                  font.family: Style.font.menuFamily
+                  font.family: "JetBrainsMono Nerd Font"
                   font.pixelSize: 14
                 }
               }

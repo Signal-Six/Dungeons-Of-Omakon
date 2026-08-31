@@ -1,0 +1,14 @@
+spellName,spellDamage,spellDuration,spellCost,spellEffect,spellDescription
+Mana Missile,1d4+INT,,4,"Infinite Accuracy, never misses","Fires a small pellet of magical force. Although the damage is trivial, the pellet never misses."
+Slip,0,,5,Enemy loses a turn,"Casts a small field of ice over the floor, causing the enemy to slip and lose a turn."
+Mana Ray,2d6+(INT/2),,10,,Fires a beam of condensed magical energy.
+Flyer Fins,0,INT/4,3,Player moves two tiles at a time.,"Wings of energy extend from your feet, allowing you to move swiftly."
+Magic Barrier,0,INT/2,5,Adds (INT) to DV and MDV,Erects a sphere of magical energy to protect the user.
+Revengeance Barrier,4+(INT/4),INT/4,8,Adds (INT) to DV and MDV and enemy takes (spellDamage) if it manages to hit the player,A modified Magic Barrier that also retaliates against the attacker.
+Blink,0,,4,"Moves player to target tile within view, cannot move through wall.",A novice teleportation spell that allows the player to instantly transmit themselves a short distance.
+Wind Shield,0,1+INT/4,7,Negates an attack against the player’s DV,Summon magical winds that block physical strikes.
+Water Shield,0,1+INT/4,7,Negates an attack against the player’s MDV,Summon magical water to inhibit the strikes of magical opponents.
+Lesser Heal,1d5+(INT/4),,9,Restore (spellDamage) of player’s health.,Magical energy heals the user by a small amount.
+Heal,1d12+(INT/4),,12,Restore (spellDamage) of player’s health.,Magical energy heals the user by a moderate amount.
+Greater Heal,3d6+(INT/2),,20,Restore (spellDamage) of player’s health.,Magical energy heals the user by a substantial amount.
+Lightning Bolt,3d10+(INT/4),,15,,The user casts a great bolt of magical lighting at the opponent.
