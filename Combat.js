@@ -1,8 +1,9 @@
 // Combat.js — damage and accuracy resolution. Pure UI-free.
 // Injected by Panel.qml's runtime; formulas per the user's spec:
 //
-//   ACC = Sum(accuracy bonuses) + DEX
-//   hit iff ACC >= monster.DV
+//   ACC = Sum(accuracy bonuses) + DEX + 2d6   (2026-08-31: dice added for
+//     swing — flat ACC vs flat DV made low-level fights deterministic)
+//   hit iff rolled ACC >= monster.DV
 //   on hit: DAM = Sum(damage bonuses) + STR + d4   (rolled at runtime)
 //
 // Player defense (agreed 2026-08-24) mirrors the attack formula:
@@ -21,12 +22,14 @@
 // is { def: <Defense+Enchant already summed>, enchanted: <bool> } so this
 // module stays free of equipment.json lookups.
 
-function rollD4(rng) {
+function rollDie(rng, sides) {
   // rng is either undefined (fall back to Math.random) or a function
   // producing [0,1). Keep deterministic test seeds possible.
   var r = rng ? rng() : Math.random();
-  return 1 + Math.floor(r * 4);
+  return 1 + Math.floor(r * sides);
 }
+
+function rollD4(rng) { return rollDie(rng, 4); }
 
 // Sum a single stat key over an array of item/effort sources. Each source
 // is either null, a number, or an object with the stat under a recognisable
@@ -114,17 +117,23 @@ function defend(state, monster, rng) {
 }
 
 // Full attack resolution against a monster. rng is optional (tests pass one).
-// Returns { hit, accuracy, damage?, d4?, rollBreakdown }
+// ACC swing (2026-08-31): total ACC = base + 2d6, compared to the monster's
+// DV. The two d6s are rolled BEFORE the hit check, so a miss consumes rng
+// just like a hit (deterministic test cycler stays aligned).
+// Returns { hit, accuracy (base), accRoll (base+2d6), dv, damage?, d4? }
 function attack(state, monster, rng) {
-  var acc = accuracyOf(state);
+  var base = accuracyOf(state);
+  var d6a = rollDie(rng, 6);
+  var d6b = rollDie(rng, 6);
+  var acc = base + d6a + d6b;
   if (acc < (monster.dv || 0)) {
-    return { hit: false, accuracy: acc, dv: monster.dv || 0 };
+    return { hit: false, accuracy: base, accRoll: acc, dv: monster.dv || 0 };
   }
-  var base = baseDamageOf(state);
+  var dmg = baseDamageOf(state);
   var d4 = rollD4(rng);
   return {
-    hit: true, accuracy: acc, dv: monster.dv || 0,
-    baseDamage: base, d4: d4, damage: base + d4
+    hit: true, accuracy: base, accRoll: acc, dv: monster.dv || 0,
+    baseDamage: dmg, d4: d4, damage: dmg + d4
   };
 }
 

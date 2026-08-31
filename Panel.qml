@@ -591,7 +591,7 @@ Panel {
     // player strike
     var res = Combat.attack(state, combat.monster)
     if (!res.hit) {
-      combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (" + res.accuracy + " vs DV " + res.dv + ")")
+      combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (ACC " + res.accuracy + "+2d6=" + res.accRoll + " vs DV " + res.dv + ")")
     } else {
       var dmg = res.damage
       combat.log.push("You strike the " + combat.monster.name + " with " + wlabel + " for " + dmg + " damage (" + res.baseDamage + "+" + res.d4 + ")!")

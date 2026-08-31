@@ -57,7 +57,7 @@ function playerStrike(loop, state, weaponLabel, rng) {
   var wlabel = weaponLabel || "your fists";
   if (!res.hit) {
     loop.log.push("You strike at the " + m.name + " with " + wlabel
-      + " — miss. (" + res.accuracy + " vs DV " + res.dv + ")");
+      + " — miss. (ACC " + res.accuracy + "+2d6=" + res.accRoll + " vs DV " + res.dv + ")");
     return loop;
   }
   var dmg = res.damage;
