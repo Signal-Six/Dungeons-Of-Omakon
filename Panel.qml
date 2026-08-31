@@ -76,6 +76,7 @@ Panel {
   property var monsterTable: []        // loaded from monsters.json at boot
   property var equipmentTable: []      // loaded from equipment.json at boot
   property var combat: null            // CombatLoop.newEncounter() object, or null
+  property bool combatVictory: false   // kill resolved; rewards on screen until next click
   property int combatLogVersion: 0     // bump → combatView recomputes + log scrolls
   // QML can't observe deep JS-object mutation: `combat.log.push(...)` doesn't
   // re-evaluate bindings on `root.combat`. combatView is a fresh snapshot
@@ -89,6 +90,7 @@ Panel {
     return {
       name: m.name, icon: m.icon, color: m.color,
       hp: Math.max(0, m.hp), hpMax: m.hpMax,
+      victory: combatVictory,
       log: combat.log.slice()
     }
   }
@@ -462,6 +464,7 @@ Panel {
     explored = run.explored || ({})
     markExplored(pos.row, pos.col)
     combat = null    // fights are not persisted
+    combatVictory = false
   }
 
   // ---- Run lifecycle transitions ----------------------------------------------
@@ -478,6 +481,7 @@ Panel {
     rightHand = ({ Name: "Rusty Sword" })
     pack = (new Array(12)).fill(null)
     combat = null
+    combatVictory = false
     spells = []
     floorNum = 1
     floorSeed = (Math.random() * 0x7fffffff) | 0
@@ -492,6 +496,11 @@ Panel {
   function showArchive() { loadArchive(); mode = "archive" }
 
   function die() {
+    // Drop the encounter: the death screen must own the whole viewport
+    // (combatView is only nulled on the next combatAct click, which
+    // never comes once the run is over).
+    combat = null
+    combatVictory = false
     // Permadeath: archive the run, clear the active run, bump to menu.
     saveArchiveEntry({
       name: runName, started: runStarted,
@@ -565,12 +574,17 @@ Panel {
 
   // Player acts (the left-card click). Strike first; if the monster
   // survives, it retaliates in the same click (design: player-first,
-  // retaliate-only — the "round" resolves in one action).
-  property bool combatActed: false   // debug: flips on click to change glyph color
-
+  // retaliate-only — the "round" resolves in one action). On a kill the
+  // overlay HOLDS (combatVictory) with the reward lines on screen; the
+  // next click closes the encounter.
   function combatAct() {
-    if (!combat || combat.over) return
-    combatActed = true
+    if (!combat) return
+    if (combat.over) {          // victory-hold click → return to exploration
+      combat = null
+      combatVictory = false
+      saveRun()
+      return
+    }
     // Inline CombatLoop.round logic — QML can't call imported JS module functions
     var state = combatState()
     var wlabel = weaponLabel(rightHand)
@@ -604,35 +618,36 @@ Panel {
         combat.log.push("The " + combat.monster.name + " attacks — misses.")
       }
     }
-    // kill rewards
+    // kill rewards — the overlay holds (combatVictory) so the player can
+    // read the outcome; the next click closes the encounter.
     if (combat.over && combat.won) {
       grantXp(combat.monster.xp, combat.monster.name)
       var drop = Drops.rollDrop(equipmentTable, floorNum, Math.random)
       if (drop) {
-        combat.log.push("It drops a " + drop.Name + (drop.Enchant ? " (+" + drop.Enchant + ")" : "") + ".")
-        giveLoot(drop)
+        var packed = giveLoot(drop)
+        combat.log.push("It drops a " + drop.Name + (drop.Enchant ? " (+" + drop.Enchant + ")" : "") + "!"
+          + (packed ? "" : " — but your pack is full; it is left behind."))
+      } else {
+        combat.log.push("It drops nothing.")
       }
+      combatVictory = true
     }
     bumpCombatLog()
-    if (combat.over) {
-      combat = null
-      saveRun()
-    }
   }
 
-  // Put a dropped instance into the first empty pack slot. If the pack is
-  // full the item is lost (logged so the player knows what they missed).
+  // Put a dropped instance into the first empty pack slot. Returns true
+  // if packed; if the pack is full the item is lost (the caller logs it).
   function giveLoot(drop) {
-    if (!drop) return
+    if (!drop) return false
     for (var i = 0; i < pack.length; i++) {
       if (!pack[i]) {
         var next = pack.slice()
         next[i] = drop
         pack = next
-        return
+        return true
       }
     }
-    if (combat) combat.log.push("Your pack is full — the " + drop.Name + " is left behind.")
+    return false
   }
 
   // Dev trace: dumps the current cell, facing, and vista flags so on-screen
@@ -1171,7 +1186,8 @@ Panel {
                 id: monsterGlyph
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.combatView ? (root.combatView.icon || "?") : "?"
-                color: root.combatActed ? "#ff00ff" : monsterCard.tierColor
+                color: root.combatView && root.combatView.victory
+                  ? "#8860a0" : monsterCard.tierColor
                 font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: 56
               }
@@ -1211,7 +1227,8 @@ Panel {
               anchors.horizontalCenter: parent.horizontalCenter
               anchors.bottom: parent.bottom
               anchors.bottomMargin: 10
-              text: "CLICK TO ATTACK"
+              text: root.combatView && root.combatView.victory
+                ? "CLICK TO CONTINUE" : "CLICK TO ATTACK"
               color: Qt.darker(Color.menu.text, 1.8)
               font.family: Style.font.menuFamily
               font.pixelSize: 9
@@ -1221,10 +1238,7 @@ Panel {
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               z: 10
-              onClicked: {
-                console.log("omakon DEBUG monsterCard clicked")
-                root.combatAct()
-              }
+              onClicked: root.combatAct()
             }
           }
 
