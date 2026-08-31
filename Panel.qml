@@ -1979,23 +1979,25 @@ Panel {
               }
             }
 
-            // Stat scores (left) with the equipped-items list (right), below
-            // the EXP bar as requested.
+            // Stat scores (left, vertical) with the equipped-items list
+            // (right, vertical), both below the EXP bar as requested.
             Row {
               width: parent.width
-              Repeater {
-                model: [
-                  { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
-                  { k: "con", label: "CON" }, { k: "int", label: "INT" },
-                  { k: "wil", label: "WIL" }
-                ]
-                Text {
-                  property var s: modelData
-                  text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
-                  font.pixelSize: 12; font.family: Style.font.menuFamily; color: Color.menu.text
+              Column {
+                Repeater {
+                  model: [
+                    { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
+                    { k: "con", label: "CON" }, { k: "int", label: "INT" },
+                    { k: "wil", label: "WIL" }
+                  ]
+                  Text {
+                    property var s: modelData
+                    text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
+                    font.pixelSize: 12; font.family: Style.font.menuFamily; color: Color.menu.text
+                  }
                 }
               }
-              Item { width: 12 }
+              Item { width: 96 }   // ~1 inch between the columns
               Column {
                 spacing: 1
                 Repeater {
@@ -2187,6 +2189,9 @@ Panel {
                 }
                 MouseArea {
                   anchors.fill: parent
+                  // onClicked defaults to left-button only — include
+                  // right so right-click reaches the handler.
+                  acceptedButtons: Qt.LeftButton | Qt.RightButton
                   // Right-click: item info modal (name + prose), toggling.
                   // Left-click: equip/unequip by class, or use consumables.
                   onClicked: function(m) {
@@ -2247,31 +2252,45 @@ Panel {
         }
         Rectangle { width: parent.width; height: 1; color: Color.menu.border }
 
-        Text {
+        // Description — capped so the footer row (hint + trash) stays clear
+        // of the prose on long descriptions.
+        Item {
           width: parent.width
-          wrapMode: Text.WordWrap
-          text: root.infoText()
-          color: Qt.darker(Color.menu.text, 1.3)
-          font.family: Style.font.menuFamily
-          font.pixelSize: 11
+          height: 70
+          Flickable {
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: childrenRect.height
+            clip: true
+            Text {
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: root.infoText()
+              color: Qt.darker(Color.menu.text, 1.3)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 11
+            }
+          }
         }
         Item { height: 1; width: 1 }   // spacer so the row hugs the bottom
         Row {
           width: parent.width
+          // Hint centered horizontally; the flexible spacer pushes the
+          // trash to the far right (= modal's bottom-right corner).
+          Item { width: 20 }             // balances the ~20px trash glyph
           Text {
-            anchors.verticalCenter: parent.verticalCenter
             text: "right-click to close"
             color: Qt.darker(Color.menu.text, 2.0)
             font.family: Style.font.menuFamily
             font.pixelSize: 9
           }
-          Item { width: 1; height: 1 }
-          // Discard: fa-trash_arrow_up (U+EF90, in the Nerd Font) — removes
-          // the item from the pack, clearing its slot if it was equipped.
+          // Flexible spacer: with the Row's width fixed, this Item picks up
+          // the leftover width so the trash Text lands flush right.
+          Item { width: parent.width - 20 - 96 - 1 }   // hint ~96px
+          // fa-trash_arrow_up (U+EF90, verified present in the Nerd Font)
+          // bottom-right corner of the modal. Discards the item, clearing
+          // its slot if equipped.
           Text {
-            anchors.verticalCenter: parent.verticalCenter
-            // U+EF90 = fa-trash_arrow_up (verified present in the Nerd
-            // Font via glyph-reference.html); raw glyph, like the pack icons
             text: ""
             color: Qt.darker(Color.menu.text, 1.3)
             font.family: "JetBrainsMono Nerd Font"
