@@ -2025,61 +2025,6 @@ Panel {
           }
         }
 
-        // ---- ALLOC modal — level up: pick one stat to bump ----------------------
-        Rectangle {
-          visible: root.popupMode === "alloc"
-          anchors.centerIn: parent
-          width: 240
-          height: 220
-          color: Color.menu.background
-          border.color: Color.menu.border
-          border.width: 2
-          z: 20
-          Column {
-            anchors.fill: parent; anchors.margins: 12; spacing: 6
-
-            Text {
-              text: "LEVEL UP — " + root.lastLevelUpToast
-              font.bold: true; font.pixelSize: 12
-              font.family: Style.font.menuFamily; color: "#b09030"
-            }
-            Text { text: "Confirm a +1 to one stat:"; font.pixelSize: 10
-              font.family: Style.font.menuFamily; color: Qt.darker(Color.menu.text, 1.5) }
-
-            Repeater {
-              model: [
-                { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
-                { k: "con", label: "CON" }, { k: "int", label: "INT" },
-                { k: "wil", label: "WIL" }
-              ]
-              Rectangle {
-                property var s: modelData
-                width: parent.width; height: 24
-                color: Color.menu.selectedBackground
-                border.color: Color.menu.border; border.width: 1
-                Row {
-                  anchors.fill: parent; anchors.margins: 4; spacing: 8
-                  Text { text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
-                    font.pixelSize: 11; font.family: Style.font.menuFamily; color: Color.menu.text }
-                  Rectangle {
-                    width: 22; height: 16
-                    color: "#d0b040"
-                    Text { anchors.centerIn: parent; text: "+"; color: "#1b1712"
-                      font.bold: true; font.pixelSize: 11 }
-                  }
-                }
-                MouseArea {
-                  anchors.fill: parent
-                  onClicked: {
-                    root.assignStat(s.k)
-                    if ((root.heroStats && root.heroStats.unspent || 0) <= 0) root.popupMode = "none"
-                  }
-                }
-              }
-            }
-          }
-        }
-
         // ---- Spells popup ------------------------------------------------------
         Rectangle {
           visible: root.popupMode === "spells"
@@ -2200,6 +2145,65 @@ Panel {
                     else root.packClick(index)
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ---- ALLOC modal — level up: pick one stat to bump ----------------------
+    // Placed at frame scope (next to the info modal) so anchors.centerIn
+    // centers it in the 640x480 window; when this lived under the HUD strip
+    // the parent-center landed at the window's bottom edge and the modal
+    // rendered half off-screen.
+    Rectangle {
+      visible: root.popupMode === "alloc" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 240
+      height: 220
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 20
+      Column {
+        anchors.fill: parent; anchors.margins: 12; spacing: 6
+
+        Text {
+          text: "LEVEL UP — " + root.lastLevelUpToast
+          font.bold: true; font.pixelSize: 12
+          font.family: Style.font.menuFamily; color: "#b09030"
+        }
+        Text { text: "Confirm a +1 to one stat:"; font.pixelSize: 10
+          font.family: Style.font.menuFamily; color: Qt.darker(Color.menu.text, 1.5) }
+
+        Repeater {
+          model: [
+            { k: "str", label: "STR" }, { k: "dex", label: "DEX" },
+            { k: "con", label: "CON" }, { k: "int", label: "INT" },
+            { k: "wil", label: "WIL" }
+          ]
+          Rectangle {
+            property var s: modelData
+            width: parent.width; height: 24
+            color: Color.menu.selectedBackground
+            border.color: Color.menu.border; border.width: 1
+            Row {
+              anchors.fill: parent; anchors.margins: 4; spacing: 8
+              Text { text: s.label + "  " + ((root.heroStats && root.heroStats[s.k]) || 0)
+                font.pixelSize: 11; font.family: Style.font.menuFamily; color: Color.menu.text }
+              Rectangle {
+                width: 22; height: 16
+                color: "#d0b040"
+                Text { anchors.centerIn: parent; text: "+"; color: "#1b1712"
+                  font.bold: true; font.pixelSize: 11 }
+              }
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: {
+                root.assignStat(s.k)
+                if ((root.heroStats && root.heroStats.unspent || 0) <= 0) root.popupMode = "none"
               }
             }
           }
