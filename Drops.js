@@ -78,9 +78,36 @@ function rollDrop(equipment, floor, rng) {
   return instance
 }
 
+// Spell drops (2026-09-01): spells ride their own table (spells.json).
+// Same chance and rank-gating as item drops, resolved INDEPENDENTLY —
+// a kill can yield an item, a spell, both, or neither.
+function rollSpellDrop(spells, floor, rng) {
+  rng = rng || Math.random
+  if (rng() >= dropChance(floor)) return null
+  var gate = rankGate(floor)
+  var pool = []
+  for (var i = 0; i < spells.length; i++) {
+    var s = spells[i]
+    if (s.Rank > gate) continue
+    pool.push(s)
+  }
+  if (pool.length === 0) return null
+  var total = 0
+  for (i = 0; i < pool.length; i++) total += rankWeight(pool[i].Rank)
+  var pick = rng() * total
+  var chosen = pool[pool.length - 1]
+  for (i = 0; i < pool.length; i++) {
+    pick -= rankWeight(pool[i].Rank)
+    if (pick <= 0) { chosen = pool[i]; break }
+  }
+  // The spell book stores just the Name; stats/effects resolve via
+  // Spells.findByName against the table (hand-curated by the user).
+  return { Name: chosen.Name }
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    rollDrop: rollDrop, dropChance: dropChance,
+    rollDrop: rollDrop, rollSpellDrop: rollSpellDrop, dropChance: dropChance,
     rankGate: rankGate, rankWeight: rankWeight, TYPE_WEIGHTS: TYPE_WEIGHTS,
     ENCHANT_CHANCE: ENCHANT_CHANCE
   }

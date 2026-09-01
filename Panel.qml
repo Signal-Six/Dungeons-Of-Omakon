@@ -13,6 +13,7 @@ import "Drops.js" as Drops
 import "Dice.js" as Dice
 import "CombatLoop.js" as CombatLoop
 import "Poison.js" as Poison
+import "Spells.js" as Spells
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -44,6 +45,13 @@ Panel {
   // PoisonDamage (flat per tick); movesLeft counts tile moves remaining
   // (5 per the design — turning doesn't tick, wall bumps don't tick).
   property var heroPoison: null
+  // spellbook: list of {Name} (resolved via Spells.findByName against spells.json).
+  // The heal from the panel spellTable is the source of truth.
+  property var spellTable: []
+  // Active spell effects (buffs with a duration). Each entry is
+  // { name, def, stepsLeft, custom }. Ticks on tile moves out of combat,
+  // on player actions in combat.
+  property var activeSpells: []
   property string lastLevelUpToast: ""
   property var heroEffects: []
   property int heroXp: 0
@@ -262,6 +270,10 @@ Panel {
     var r = resolveInstance(inst)
     return (r && r.icon) ? r.icon : ""
   }
+  // Spell glyphs: loadSpells already normalized Icon into IconGlyph.
+  function spellGlyph(def) {
+    return (def && def.IconGlyph) ? def.IconGlyph : ""
+  }
 
   property string popupMode: "none"    // "none" | "spells" | "inventory" | "stats" | "alloc"
   function togglePopup(mode) {
@@ -314,11 +326,17 @@ Panel {
       resolveInstance(worn.helmet),
       resolveInstance(worn.amulet)
     ].filter(function (x) { return x !== null })
+    // Barrier spells contribute +INT to DV and MDV for their duration.
+    var spellEffects = heroEffects.slice()
+    if (isSpellActive("Magic Barrier") || isSpellActive("Revengeance Barrier")) {
+      var n = heroStats.int || 0
+      spellEffects = spellEffects.concat([{ def: n, enchanted: true }])
+    }
     return {
       str: heroStats.str || 0, dex: heroStats.dex || 0, int: heroStats.int || 0,
       wil: heroStats.wil || 0,
       rightHand: rh, leftHand: lh,
-      worn: wornList, effects: heroEffects
+      worn: wornList, effects: spellEffects
     }
   }
   // Attack a monster { dv: int, ... }. Returns Combat.attack's result
@@ -454,8 +472,16 @@ Panel {
     equipmentTable = JSON.parse(text)
     console.log("omakon loaded " + equipmentTable.length + " equipment entries")
   }
+  function loadSpells(text) {
+    var rows = JSON.parse(text)
+    for (var i = 0; i < rows.length; i++)
+      rows[i].IconGlyph = normalizeIcon(rows[i].Icon)
+    spellTable = rows
+    console.log("omakon loaded " + spellTable.length + " spells")
+  }
   FileView { id: monsterFile; path: root.dataDir + "/monsters.json"; onLoaded: root.loadMonsters(text()) }
   FileView { id: equipFile;   path: root.dataDir + "/equipment.json"; onLoaded: root.loadEquipment(text()) }
+  FileView { id: spellFile;   path: root.dataDir + "/spells.json";   onLoaded: root.loadSpells(text()) }
 
   property string ioStdoutText: ""
 
@@ -574,6 +600,7 @@ Panel {
       worn: wornAsIndices(),
       pack: pack, spells: spells, effects: heroEffects,
       poison: heroPoison,
+      activeSpells: Spells.serializeActives(activeSpells),
       floorNum: floorNum, seed: floorSeed,
       pos: pos, explored: explored
     }
@@ -631,6 +658,7 @@ Panel {
     heroStats = run.stats || Stats.freshStats()
     heroEffects = run.effects || []
     heroPoison = run.poison || null
+    activeSpells = Spells.reviveActives(run.activeSpells || [], spellTable)
     pack = run.pack || (new Array(12)).fill(null)
     // Hands are stored as COPIES; re-point them at the pack instance so
     // isEquipped() identity holds after the JSON round-trip. A hand not in
@@ -668,6 +696,7 @@ Panel {
     heroLevel = 1; heroXp = 0
     heroStats = Stats.freshStats()
     heroPoison = null
+    activeSpells = []
     leftHand = null
     // All gear lives in the pack; the slot is a pointer into it. The starter
     // sword rides in slot 0 and starts equipped — so it can be swapped out
@@ -725,13 +754,21 @@ Panel {
 
   function move(dir) {
     if (combat) return                  // encounter in progress: movement locked
-    var np = Dungeon.move(floor, pos, dir)
-    if (np.row !== pos.row || np.col !== pos.col) {
+    if (blinkPending) return            // waiting on a target click
+    var steps = isSpellActive("Flyer Fins") ? 2 : 1
+    for (var s = 0; s < steps; s++) {
+      var np = Dungeon.move(floor, pos, dir)
+      if (np.row === pos.row && np.col === pos.col) break   // wall
       pos = np
       markExplored(np.row, np.col)
       tickPoison()
       if (mode !== "game") return       // poison killed the hero
-      trySpawnEncounter()
+      // Fires (burn) tick per combat round AND per tile move; burn state
+      // lives on combat, so out-of-combat burn has no HOST — skipped here
+      // (burn only ticks while its fight is ongoing).
+      tickActiveSpells()
+      if (!isSpellActive("Shadow Globe")) trySpawnEncounter()
+      if (combat) break                 // Flyer Fins second step blocked by fight
     }
     debugVista()
   }
@@ -747,6 +784,253 @@ Panel {
       + (r.done ? " (last tick)" : ""))
     if (heroHp <= 0) { die(); return }
     saveRun()
+  }
+
+  // ---- Spells ------------------------------------------------------------
+  // Duration-bearing spells tick once per tile move out of combat, and once
+  // per player action in combat (2026-09-01 user clarification).
+  function tickActiveSpells() {
+    if (!activeSpells || activeSpells.length === 0) return
+    var r = Spells.tickAll(activeSpells)
+    activeSpells = r.active
+    for (var i = 0; i < r.expired.length; i++)
+      console.log("omakon " + r.expired[i].name + " wears off")
+  }
+  function isSpellActive(name) {
+    for (var i = 0; i < activeSpells.length; i++)
+      if (activeSpells[i].name === name) return true
+    return false
+  }
+  function getActive(name) {
+    for (var i = 0; i < activeSpells.length; i++)
+      if (activeSpells[i].name === name) return activeSpells[i]
+    return null
+  }
+  function hasSpell(name) {
+    for (var i = 0; i < spells.length; i++)
+      if (spells[i].Name === name || spells[i].name === name) return true
+    return false
+  }
+
+  // Cast a learned spell by name. Returns true if it fired. Attack spells
+  // require combat and target the current monster. Buffs push onto
+  // activeSpells (their effects are read by combatState/move/etc at
+  // resolution time). Blink enters move-twice targeting via blinkPending.
+  property bool blinkPending: false
+  property string spellInfoName: ""
+  function castSpell(name) {
+    var def = Spells.findByName(spellTable, name)
+    if (!def) return false
+    if (heroMp < def.Cost) { console.log("omakon not enough MP for " + name); return false }
+    var cls = Spells.classify(def)
+    if (cls === "damage" && !combat) return false   // nothing to hit
+
+    heroMp -= def.Cost
+    var intn = heroStats.int || 0
+
+    if (cls === "damage") {
+      if (name === "Mana Missile") {
+        // Infinite accuracy, never misses.
+        var mmDmg = Spells.rollFormula(def.Damage, intn, Math.random)
+        combat.monster.hp -= mmDmg
+        combat.log.push("Mana Missile hits the " + combat.monster.name
+          + " for " + mmDmg + " damage!")
+      } else {
+        // Regular attack spell: rolls to hit vs DV like a weapon.
+        var res = Combat.attack(combatState(), combat.monster)
+        if (!res.hit) {
+          combat.log.push(name + " misses the " + combat.monster.name
+            + ". (ACC " + res.accuracy + "+2d6=" + res.accRoll
+            + " vs DV " + res.dv + ")")
+          monsterTurn()
+          bumpCombatLog(); saveRun(); return true
+        }
+        var dmg = Spells.rollFormula(def.Damage, intn, Math.random)
+        combat.monster.hp -= dmg
+        combat.log.push(name + " hits the " + combat.monster.name
+          + " for " + dmg + " damage!")
+        if (name === "Fireball") {
+          combat.burn = { dmg: Dice.roll("1d4"), rounds: 3 }
+          combat.log.push("The " + combat.monster.name
+            + " is burning! (" + combat.burn.dmg + " per round)")
+        } else if (name === "Glacial Shard") {
+          combat.slipNext = true
+        } else if (name === "Blood Wrench") {
+          heroHp = Math.min(heroHpMax, heroHp + dmg)
+          combat.log.push("You absorb " + dmg + " HP from the "
+            + combat.monster.name + ".")
+        }
+      }
+      if (combat.monster.hp <= 0) {
+        combat.log.push("The " + combat.monster.name + " dies!")
+        combat.over = true; combat.won = true
+        resolveKill()
+      } else {
+        monsterTurn()
+      }
+      tickActiveSpells()      // cast counted as a player action
+      bumpCombatLog(); saveRun(); return true
+    }
+
+    if (cls === "heal") {
+      var amount = Spells.rollFormula(def.Damage, intn, Math.random)
+      heroHp = Math.min(heroHpMax, heroHp + amount)
+      if (combat) {
+        combat.log.push(name + " restores " + amount + " HP.")
+        monsterTurn()          // heal consumes your action in combat
+        tickActiveSpells()
+        bumpCombatLog()
+      } else {
+        console.log("omakon " + name + " restores " + amount + " HP")
+      }
+      saveRun(); return true
+    }
+
+    if (cls === "buff") {
+      var act = Spells.activate(def, intn, Math.random)
+      if (name === "Ice Shield") act.custom.shieldHp = 14
+      activeSpells = activeSpells.concat([act])
+      if (combat) {
+        combat.log.push(name + " surrounds you. (" + act.stepsLeft + " rounds)")
+        monsterTurn()          // casting in combat = your action
+        tickActiveSpells()
+        bumpCombatLog()
+      } else {
+        console.log("omakon cast " + name + " (" + act.stepsLeft + " steps)")
+      }
+      saveRun(); return true
+    }
+
+    if (cls === "blink") {
+      blinkPending = true      // automap click resolves the target
+      console.log("omakon blink: click a visible tile")
+      saveRun(); return true
+    }
+
+    // specials
+    if (name === "Slip" && combat && !combat.over) {
+      combat.slipNext = true
+      combat.log.push("The " + combat.monster.name + " slips on ice!")
+      tickActiveSpells()
+      bumpCombatLog(); saveRun(); return true
+    }
+    if (name === "Imbibe Luck") {
+      luckPending = true
+      console.log("omakon luck imbued — next kill drops for sure")
+      saveRun(); return true
+    }
+    return false
+  }
+
+  // Monster retaliation shared by attacks and spell casts in combat.
+  function monsterTurn() {
+    if (!combat || combat.over) return
+    if (combat.slipNext) {
+      combat.slipNext = false
+      combat.log.push("The " + combat.monster.name + " loses its footing — no attack!")
+      return
+    }
+    var state = combatState()
+    var accRoll = Dice.roll(combat.monster.accExpr)
+    var mres = Combat.defend(state, { acc: accRoll, dmg: 0,
+                                      isMagic: combat.monster.isMagic })
+    if (mres.hit) {
+      var mdmg = Dice.roll(combat.monster.damageExpr)
+      // Wind/Water Shield negate one attack per cast.
+      var ws = getActive("Wind Shield"), wa = getActive("Water Shield")
+      if ((mres.target === "DV" && ws) || (mres.target === "MDV" && wa)) {
+        combat.log.push("Your " + (mres.target === "DV" ? "Wind" : "Water")
+          + " Shield negates the blow!")
+        activeSpells = activeSpells.filter(function (a) {
+          return a.name !== "Wind Shield" && a.name !== "Water Shield"
+        })
+        return
+      }
+      combat.log.push("The " + combat.monster.name + " attacks you for "
+        + mdmg + " damage!")
+      heroHp = Math.max(0, heroHp - mdmg)
+      // Revengeance Barrier reflects.
+      var rb = getActive("Revengeance Barrier")
+      if (rb) {
+        var rdmg = Spells.rollFormula(rb.def.Damage, heroStats.int || 0, Math.random)
+        combat.monster.hp -= rdmg
+        combat.log.push("The barrier retaliates for " + rdmg + " damage!")
+        if (combat.monster.hp <= 0) {
+          combat.log.push("The " + combat.monster.name + " dies!")
+          combat.over = true; combat.won = true
+          resolveKill(); return
+        }
+      }
+      if (combat.monster.isPoison && !combat.poisoned) {
+        combat.poisoned = true
+        combat.log.push("You feel poison coursing through your veins!")
+      }
+      if (heroHp <= 0) { die(); return }
+    } else {
+      combat.log.push("The " + combat.monster.name + " attacks — misses.")
+      // Ice Shield decays on enemy misses by the would-be roll.
+      var ice = getActive("Ice Shield")
+      if (ice && ice.custom.shieldHp > 0) {
+        var would = Dice.roll(combat.monster.damageExpr)
+        var left = ice.custom.shieldHp - would
+        combat.log.push("The ice shield absorbs " + would
+          + " (shield " + Math.max(0, left) + " left)")
+        activeSpells = activeSpells.map(function (a) {
+          if (a.name !== "Ice Shield") return a
+          return { name: a.name, def: a.def, stepsLeft: a.stepsLeft,
+                   custom: { shieldHp: left } }
+        })
+        if (left <= 0) {
+          combat.log.push("The ice shield shatters!")
+          activeSpells = activeSpells.filter(function (a) { return a.name !== "Ice Shield" })
+        }
+      }
+    }
+  }
+
+  // Kill rewards shared by weapon and spell kills.
+  property bool luckPending: false
+  function resolveKill() {
+    grantXp(combat.monster.xp, combat.monster.name)
+    if (combat.poisoned) {
+      if (poisonImmune()) combat.log.push("Your amulet wards off the poison.")
+      else {
+        heroPoison = Poison.start(combat.monster.poisonDamage || 1)
+        combat.log.push("The poison takes hold. (" + heroPoison.dmg
+          + " damage per step, " + heroPoison.movesLeft + " steps)")
+      }
+    }
+    var drop = luckPending
+      ? forceDrop()
+      : Drops.rollDrop(equipmentTable, floorNum, Math.random)
+    luckPending = false
+    if (drop) {
+      var packed = giveLoot(drop)
+      combat.log.push("It drops a " + drop.Name
+        + (drop.Enchant ? " (+" + drop.Enchant + ")" : "") + "!"
+        + (packed ? "" : " — but your pack is full; it is left behind."))
+    } else {
+      combat.log.push("It drops nothing.")
+    }
+    // Spell drop: independent roll; re-learning a known spell fizzles.
+    var sdrop = Drops.rollSpellDrop(spellTable, floorNum, Math.random)
+    if (sdrop) {
+      if (hasSpell(sdrop.Name)) {
+        combat.log.push("You already know " + sdrop.Name + ".")
+      } else {
+        spells = spells.concat([{ Name: sdrop.Name }])
+        combat.log.push("You learn the spell " + sdrop.Name + "!")
+      }
+    }
+    combatVictory = true
+  }
+  // Imbibe Luck: roll items until one lands (same table/rank gating).
+  function forceDrop() {
+    for (var tries = 0; tries < 20; tries++) {
+      var d = Drops.rollDrop(equipmentTable, floorNum, Math.random)
+      if (d) return d
+    }
+    return null
   }
   function turn(rel) {
     if (combat) return
@@ -787,7 +1071,8 @@ Panel {
   // survives, it retaliates in the same click (design: player-first,
   // retaliate-only — the "round" resolves in one action). On a kill the
   // overlay HOLDS (combatVictory) with the reward lines on screen; the
-  // next click closes the encounter.
+  // One player combat action = weapon strike(s) + monster retaliation.
+  // Haste: player attacks twice per click while active.
   function combatAct() {
     if (!combat) return
     if (combat.over) {          // victory-hold click → return to exploration
@@ -796,72 +1081,41 @@ Panel {
       saveRun()
       return
     }
-    // Inline CombatLoop.round logic — QML can't call imported JS module functions
     var state = combatState()
     var wlabel = weaponLabel(rightHand)
-    // player strike
-    var res = Combat.attack(state, combat.monster)
-    if (!res.hit) {
-      combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (ACC " + res.accuracy + "+2d6=" + res.accRoll + " vs DV " + res.dv + ")")
-    } else {
-      var dmg = res.damage
-      combat.log.push("You strike the " + combat.monster.name + " with " + wlabel + " for " + dmg + " damage (" + res.baseDamage + "+" + res.d4 + ")!")
-      combat.monster.hp -= dmg
+    var strikes = isSpellActive("Haste") ? 2 : 1
+    for (var round = 0; round < strikes && !combat.over; round++) {
+      var res = Combat.attack(state, combat.monster)
+      if (!res.hit) {
+        combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (ACC " + res.accuracy + "+2d6=" + res.accRoll + " vs DV " + res.dv + ")")
+      } else {
+        var dmg = res.damage
+        combat.log.push("You strike the " + combat.monster.name + " with " + wlabel + " for " + dmg + " damage (" + res.baseDamage + "+" + res.d4 + ")!")
+        combat.monster.hp -= dmg
+        if (combat.monster.hp <= 0) {
+          combat.log.push("The " + combat.monster.name + " dies!")
+          combat.over = true
+          combat.won = true
+          break
+        }
+      }
+    }
+    // Fireball burn ticks at the start of each ROUND (per round in combat).
+    if (!combat.over && combat.burn && combat.burn.rounds > 0) {
+      combat.monster.hp -= combat.burn.dmg
+      combat.burn.rounds--
+      combat.log.push("The flames lick the " + combat.monster.name
+        + " for " + combat.burn.dmg + " damage. (" + combat.burn.rounds + " rounds left)")
+      if (combat.burn.rounds <= 0) combat.burn = null
       if (combat.monster.hp <= 0) {
         combat.log.push("The " + combat.monster.name + " dies!")
-        combat.over = true
-        combat.won = true
+        combat.over = true; combat.won = true
       }
     }
-    // monster retaliation (if not dead)
-    if (!combat.over) {
-      var accRoll = Dice.roll(combat.monster.accExpr)
-      var mres = Combat.defend(state, { acc: accRoll, dmg: 0, isMagic: combat.monster.isMagic })
-      if (mres.hit) {
-        var mdmg = Dice.roll(combat.monster.damageExpr)
-        combat.log.push("The " + combat.monster.name + " attacks you for " + mdmg + " damage!")
-        heroHp = Math.max(0, heroHp - mdmg)
-        // Poison: the monster envenoms on its first successful hit. The
-        // status doesn't start ticking until the fight ends — movement is
-        // locked during combat, and ticks are movement-driven (Poison.js).
-        if (combat.monster.isPoison && !combat.poisoned) {
-          combat.poisoned = true
-          combat.log.push("You feel poison coursing through your veins!")
-        }
-        if (heroHp <= 0) {
-          die()
-          return
-        }
-      } else {
-        combat.log.push("The " + combat.monster.name + " attacks — misses.")
-      }
-    }
-    // kill rewards — the overlay holds (combatVictory) so the player can
-    // read the outcome; the next click closes the encounter.
-    if (combat.over && combat.won) {
-      grantXp(combat.monster.xp, combat.monster.name)
-      // Poison takes hold as the fight ends. Lucid Crystal (the amulet
-      // whose prose grants poison immunity) blocks the onset entirely;
-      // it's worn-or-not at this moment, no retroactive cure.
-      if (combat.poisoned) {
-        if (poisonImmune()) {
-          combat.log.push("Your amulet wards off the poison.")
-        } else {
-          heroPoison = Poison.start(combat.monster.poisonDamage || 1)
-          combat.log.push("The poison takes hold. (" + heroPoison.dmg
-            + " damage per step, " + heroPoison.movesLeft + " steps)")
-        }
-      }
-      var drop = Drops.rollDrop(equipmentTable, floorNum, Math.random)
-      if (drop) {
-        var packed = giveLoot(drop)
-        combat.log.push("It drops a " + drop.Name + (drop.Enchant ? " (+" + drop.Enchant + ")" : "") + "!"
-          + (packed ? "" : " — but your pack is full; it is left behind."))
-      } else {
-        combat.log.push("It drops nothing.")
-      }
-      combatVictory = true
-    }
+    if (!combat.over) monsterTurn()
+    // Count this round against any active spell durations.
+    tickActiveSpells()
+    if (combat && combat.over && combat.won) resolveKill()
     bumpCombatLog()
   }
 
@@ -2080,13 +2334,16 @@ Panel {
         }
 
         // ---- Spells popup ------------------------------------------------------
+        // Left-click casts (attack spells only land in combat; heals work
+        // anywhere; buffs activate). Right-click opens the info modal with
+        // the spellDescription prose.
         Rectangle {
           visible: root.popupMode === "spells"
           anchors.bottom: parent.top
           anchors.right: parent.right
           anchors.bottomMargin: 4
-          width: 220
-          height: 140
+          width: 240
+          height: 220
           color: Color.menu.background
           border.color: Color.menu.border
           border.width: 2
@@ -2096,7 +2353,7 @@ Panel {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: 8
-            text: "SPELLS"
+            text: "SPELLS  (MP " + root.heroMp + "/" + root.heroMpMax + ")"
             color: Color.menu.text
             font.family: Style.font.menuFamily
             font.bold: true
@@ -2113,13 +2370,107 @@ Panel {
             anchors.fill: parent
             anchors.topMargin: 30
             anchors.margins: 8
+            clip: true
             model: root.spells
-            delegate: Text {
-              text: modelData.icon + " " + modelData.name
+            delegate: Rectangle {
+              property var spellDef: {
+                for (var i = 0; i < root.spellTable.length; i++)
+                  if (root.spellTable[i].Name === modelData.Name) return root.spellTable[i]
+                return null
+              }
+              width: parent ? parent.width : 200
+              height: 24
+              color: "transparent"
+              Row {
+                anchors.fill: parent; anchors.margins: 2; spacing: 6
+                Text {
+                  text: spellDef ? (root.spellGlyph(spellDef) || "·") : "·"
+                  color: Color.menu.text
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 14
+                }
+                Text {
+                  text: modelData.Name
+                  color: Color.menu.text
+                  font.family: Style.font.menuFamily
+                  font.pixelSize: 11
+                }
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: spellDef ? (spellDef.Cost + " MP") : ""
+                  color: Qt.darker(Color.menu.text, 1.6)
+                  font.family: Style.font.menuFamily
+                  font.pixelSize: 9
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: function(m) {
+                  if (m.button === Qt.RightButton) root.spellInfoName = modelData.Name
+                  else { root.castSpell(modelData.Name); root.popupMode = "none" }
+                }
+              }
+            }
+          }
+        }
+
+        // ---- Spell info modal (right-click a spell in the book) -----------
+        Rectangle {
+          visible: root.spellInfoName !== ""
+          anchors.centerIn: parent
+          width: 280
+          height: 170
+          color: Color.menu.background
+          border.color: Color.menu.border
+          border.width: 2
+          z: 16
+          Column {
+            anchors.fill: parent; anchors.margins: 10; spacing: 8
+            Text {
+              text: root.spellInfoName
               color: Color.menu.text
+              font.family: Style.font.menuFamily
+              font.bold: true; font.pixelSize: 13
+            }
+            Text {
+              property var sd: {
+                for (var i = 0; i < root.spellTable.length; i++)
+                  if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
+                return null
+              }
+              text: sd ? ("Cost " + sd.Cost + " MP"
+                + (sd.Damage && sd.Damage !== "0" ? "   dmg " + sd.Damage : "")
+                + (sd.Duration && sd.Duration !== "0" ? "   dur " + sd.Duration : "")) : ""
+              color: Qt.darker(Color.menu.text, 1.4)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 10
+            }
+            Rectangle { width: parent.width; height: 1; color: Color.menu.border }
+            Text {
+              property var sd2: {
+                for (var i = 0; i < root.spellTable.length; i++)
+                  if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
+                return null
+              }
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: sd2 ? sd2.Description : ""
+              color: Qt.darker(Color.menu.text, 1.3)
               font.family: Style.font.menuFamily
               font.pixelSize: 11
             }
+            Item { height: 1; width: 1 }
+            Text {
+              text: "click anywhere to close"
+              color: Qt.darker(Color.menu.text, 2.0)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 9
+            }
+          }
+          MouseArea {
+            anchors.fill: parent
+            onClicked: root.spellInfoName = ""
           }
         }
 

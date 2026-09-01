@@ -1,14 +1,21 @@
-spellName,spellDamage,spellDuration,spellCost,spellEffect,spellDescription
-Mana Missile,1d4+INT,,4,"Infinite Accuracy, never misses","Fires a small pellet of magical force. Although the damage is trivial, the pellet never misses."
-Slip,0,,5,Enemy loses a turn,"Casts a small field of ice over the floor, causing the enemy to slip and lose a turn."
-Mana Ray,2d6+(INT/2),,10,,Fires a beam of condensed magical energy.
-Flyer Fins,0,INT/4,3,Player moves two tiles at a time.,"Wings of energy extend from your feet, allowing you to move swiftly."
-Magic Barrier,0,INT/2,5,Adds (INT) to DV and MDV,Erects a sphere of magical energy to protect the user.
-Revengeance Barrier,4+(INT/4),INT/4,8,Adds (INT) to DV and MDV and enemy takes (spellDamage) if it manages to hit the player,A modified Magic Barrier that also retaliates against the attacker.
-Blink,0,,4,"Moves player to target tile within view, cannot move through wall.",A novice teleportation spell that allows the player to instantly transmit themselves a short distance.
-Wind Shield,0,1+INT/4,7,Negates an attack against the player’s DV,Summon magical winds that block physical strikes.
-Water Shield,0,1+INT/4,7,Negates an attack against the player’s MDV,Summon magical water to inhibit the strikes of magical opponents.
-Lesser Heal,1d5+(INT/4),,9,Restore (spellDamage) of player’s health.,Magical energy heals the user by a small amount.
-Heal,1d12+(INT/4),,12,Restore (spellDamage) of player’s health.,Magical energy heals the user by a moderate amount.
-Greater Heal,3d6+(INT/2),,20,Restore (spellDamage) of player’s health.,Magical energy heals the user by a substantial amount.
-Lightning Bolt,3d10+(INT/4),,15,,The user casts a great bolt of magical lighting at the opponent.
+spellName,spellDamage,spellDuration,spellCost,spellEffect,spellDescription,Rank,Icon
+Mana Missile,1d4+INT,,4,"Infinite Accuracy, never misses","Fires a small pellet of magical force. Although the damage is trivial, the pellet never misses.",1,U+ef23
+Ice Shield,,1d12+(INT/2),5,"Temporarily equips a shield that has 14 health. Every time the enemy misses, the shield takes the enemy’s damage roll in damage. When the shield HP drops to 0, the spell expires.",Condense ambient air and water into a temporary shield.,3,U+f0780
+Slip,0,,5,Enemy loses a turn,"Casts a small field of ice over the floor, causing the enemy to slip and lose a turn.",2,U+ef30
+Mana Ray,2d6+(INT/2),,10,,Fires a beam of condensed magical energy.,4,U+ef15
+Fireball,1d4+(INT/2),,10,"On hit, apply 1d4 burn damage to enemy per round for 3 rounds.","Lobs a ball of magical fire that will envelope an enemy, roasting them.",4,U+f0238
+Glacial Shard,1d6+(INT/3),,12,"On hit, enemy loses its next turn.",Launches a spear of ice so cold it temporarily freezes the enemy.,5,U+f0b8b
+Flyer Fins,0,INT/4,3,Player moves two tiles at a time.,"Wings of energy extend from your feet, allowing you to move swiftly.",5,U+f15c6
+Magic Barrier,0,INT/2,5,Adds (INT) to DV and MDV,Erects a sphere of magical energy to protect the user.,4,U+f0062
+Revengeance Barrier,4+(INT/4),INT/4,8,Adds (INT) to DV and MDV and enemy takes (spellDamage) if it manages to hit the player,A modified Magic Barrier that also retaliates against the attacker.,4,U+f1597
+Blink,0,,4,"Moves player to target tile within view, cannot move through wall.",A novice teleportation spell that allows the player to instantly transmit themselves a short distance.,6,U+f1742
+Wind Shield,0,1+INT/4,7,Negates an attack against the player’s DV,Summon magical winds that block physical strikes.,7,U+f0d98
+Water Shield,0,1+INT/4,7,Negates an attack against the player’s MDV,Summon magical water to inhibit the strikes of magical opponents.,7,U+f1806
+Lesser Heal,1d5+(INT/4),,9,Restore (spellDamage) of player’s health.,Magical energy heals the user by a small amount.,3,U+ef78
+Heal,1d12+(INT/4),,12,Restore (spellDamage) of player’s health.,Magical energy heals the user by a moderate amount.,4,U+ef78
+Greater Heal,3d6+(INT/2),,20,Restore (spellDamage) of player’s health.,Magical energy heals the user by a substantial amount.,7,U+ef78
+Lightning Bolt,3d10+(INT/4),,15,,The user casts a great bolt of magical lighting at the opponent.,8,U+f140b
+Shadow Globe,,3d10+(INT/4),30,Stops random encounters for (spellDuration),"The user is shrouded in a globe of oozing shadow, concealing them from enemies.",8,U+f211
+Haste,,2d10,17,Roll attack formula twice for (spellDuration),"The user accelerates themselves, allowing them to attack twice in a turn.",9,U+f0629
+Imbibe Luck,,,13,Guarantees an item drop when the player defeats an enemy.,Absorb ambient luck particles from the time stream to force fate.,7,U+f076e
+Blood Wrench,1d5+(INT/4),,17,"On hit, absorb (spellDamage) HP from the enemy and give to the player.",Draw out the enemy’s blood and absorb it into your own life force.,6,U+f0cec

@@ -46,10 +46,10 @@ var saved = JSON.parse(Save.serializeRun({
   poison: { dmg: 3, movesLeft: 4 },
   floorNum: 1, seed: 1, pos: null, explored: {}
 }));
-check("save version is 6", saved.version === 6);
+check("save version is 7", saved.version === 7);
 check("poison survives the JSON round-trip",
   saved.poison && saved.poison.dmg === 3 && saved.poison.movesLeft === 4);
-check("v6 parses", Save.parseRun(JSON.stringify(saved)) !== null);
+check("v7 parses", Save.parseRun(JSON.stringify(saved)) !== null);
 check("v5 still parses", Save.parseRun(
   '{"version":5,"name":"x","pack":[],"explored":{}}') !== null);
 
