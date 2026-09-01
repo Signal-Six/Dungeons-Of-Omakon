@@ -681,7 +681,7 @@
       "floor": 50,
       "onPickup": "spawn-exit"
     },
-    "Icon": "󰬯 md_crystal_ball"
+    "Icon": "U+eef5"
   },
   {
     "Name": "Leather Armor",
@@ -701,7 +701,7 @@
     "Description": "Armor cobbled together from other pieces. Often worn by desert wanderers.",
     "Type": "Armor",
     "Rank": 1,
-    "Icon": "󰩻 md_tshirt_crew"
+    "Icon": " fa_shirt"
   },
   {
     "Name": "Bone Armor",
@@ -711,7 +711,7 @@
     "Description": "Primitive mail derived from the bones of some huge creature. Worn primarily by orcs.",
     "Type": "Armor",
     "Rank": 2,
-    "Icon": "󰂹 md_bone"
+    "Icon": " fa_shirt"
   },
   {
     "Name": "Chainmail",
@@ -791,7 +791,7 @@
     "Description": "An archaic relic of a bygone era. Unknown mechanics assist in movement.",
     "Type": "Armor",
     "Rank": 9,
-    "Icon": "󰚩 md_robot"
+    "Icon": " fa_shirt"
   },
   {
     "Name": "Elven mail",
@@ -821,7 +821,7 @@
     "Description": "Gleaming armor crafted from magical crystals. Provides unassailable defense.",
     "Type": "Armor",
     "Rank": 10,
-    "Icon": "󰇈 md_diamond_stone"
+    "Icon": " fa_shirt"
   },
   {
     "Name": "Leather Helm",
@@ -891,7 +891,7 @@
     "Description": "A magical circlet worn by Elves.",
     "Type": "Helmet",
     "Rank": 4,
-    "Icon": "󰆥 md_crown"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Lensman Scouter",
@@ -901,7 +901,7 @@
     "Description": "A rare piece of gear worn by an ancient race. The read-out it displays aids the user’s accuracy.",
     "Type": "Helmet",
     "Rank": 7,
-    "Icon": "󰊪 md_glasses"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Power Helm",
@@ -911,7 +911,7 @@
     "Description": "A mechanical helmet meant to be paired with Power Armor.",
     "Type": "Helmet",
     "Rank": 9,
-    "Icon": "󰶓 md_racing_helmet"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Samurai Helm",
@@ -941,7 +941,7 @@
     "Description": "A circlet that projects an invisible barrier about the head.",
     "Type": "Helmet",
     "Rank": 8,
-    "Icon": "󱠨 md_shield_moon"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Eschatological Circlet",
@@ -951,7 +951,7 @@
     "Description": "A golden crown worn by a prophesied being.",
     "Type": "Helmet",
     "Rank": 10,
-    "Icon": "󰆥 md_crown"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Crystal Helm",
@@ -961,7 +961,7 @@
     "Description": "An exquisite crystalline helmet providing superb defense.",
     "Type": "Helmet",
     "Rank": 10,
-    "Icon": "󰇈 md_diamond_stone"
+    "Icon": " fa_helmet_safety"
   },
   {
     "Name": "Barrier Talisman",
@@ -981,7 +981,7 @@
     "Description": "An amulet that adds +5 HP",
     "Type": "Amulet",
     "Rank": 5,
-    "Icon": "󰋑 md_heart"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Mana Amulet",
@@ -991,7 +991,7 @@
     "Description": "A wizard’s necklace that adds +10 MP",
     "Type": "Amulet",
     "Rank": 5,
-    "Icon": "󰬯 md_crystal_ball"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Amulet of Accuracy",
@@ -1001,7 +1001,7 @@
     "Description": "An amulet enchanted by Elves to improve accuracy.",
     "Type": "Amulet",
     "Rank": 6,
-    "Icon": "󰆣 md_crosshairs"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Amulet of Destruction",
@@ -1011,7 +1011,7 @@
     "Description": "An amulet enchanted to increase the user’s destructiveness.",
     "Type": "Amulet",
     "Rank": 6,
-    "Icon": "󰈸 md_fire"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Phase Amulet",
@@ -1021,7 +1021,7 @@
     "Description": "A necklace that, when worn, has a 5% chance to negate an attack.",
     "Type": "Amulet",
     "Rank": 7,
-    "Icon": "󱠨 md_shield_moon"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Lucid Crystal",
@@ -1031,7 +1031,7 @@
     "Description": "In addition to providing a modicum of defense, this amulet prevents the user from being poisoned.",
     "Type": "Amulet",
     "Rank": 4,
-    "Icon": "󰇈 md_diamond_stone"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "War Crest",
@@ -1041,7 +1041,7 @@
     "Description": "In addition to improving the bearer’s aggression, this crest allows the bearer to attack twice (doubling damage).",
     "Type": "Amulet",
     "Rank": 8,
-    "Icon": "󰦇 md_medal"
+    "Icon": "󰟫 md_ring"
   },
   {
     "Name": "Mana Font",
@@ -1051,6 +1051,6 @@
     "Description": "A magical seed of incomprehensible power. Makes spells cost nothing.",
     "Type": "Amulet",
     "Rank": 10,
-    "Icon": "󰹢 md_seed"
+    "Icon": "󰟫 md_ring"
   }
 ]

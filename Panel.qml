@@ -12,6 +12,7 @@ import "Monsters.js" as Monsters
 import "Drops.js" as Drops
 import "Dice.js" as Dice
 import "CombatLoop.js" as CombatLoop
+import "Poison.js" as Poison
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -39,6 +40,10 @@ Panel {
   property string runStarted: ""
   property int heroLevel: 1
   property var heroStats: ({ str: 4, dex: 4, con: 4, int: 4, wil: 4, unspent: 0 })
+  // Active poison status: { dmg, movesLeft } or null. dmg is the monster's
+  // PoisonDamage (flat per tick); movesLeft counts tile moves remaining
+  // (5 per the design — turning doesn't tick, wall bumps don't tick).
+  property var heroPoison: null
   property string lastLevelUpToast: ""
   property var heroEffects: []
   property int heroXp: 0
@@ -95,6 +100,14 @@ Panel {
     for (var i = 0; i < equipmentTable.length; i++)
       if (equipmentTable[i].Name === inst.Name) return equipmentTable[i]
     return null
+  }
+  // Poison immunity: the Lucid Crystal amulet (prose says it "prevents the
+  // user from being poisoned"). Worn-slot only — carrying it in the pack
+  // doesn't help. Checked at the moment the poison would take hold.
+  function poisonImmune() {
+    if (!worn || !worn.amulet) return false
+    var e = equipmentEntry(worn.amulet)
+    return !!(e && Poison.isImmune(e.Description))
   }
   function isEquipped(i) {
     var s = slotForIndex(i)
@@ -160,7 +173,10 @@ Panel {
       consumeAt(i); return
     }
     if (/cures poison/i.test(d)) {
-      // No movement-tick poison yet: nothing to cure, the item is still used.
+      if (heroPoison) {
+        heroPoison = null
+        console.log("omakon poison cured by " + inst.Name)
+      }
       consumeAt(i); return
     }
     console.log("omakon " + inst.Name + " used — effect not implemented")
@@ -184,7 +200,8 @@ Panel {
   }
 
   // ---- Combat state (2026-08-31 design: player-first, retaliate-only,
-  // ---- no flee; poison is log-only until the movement-tick system lands) ---
+  // ---- no flee; poison envenoms on first monster hit and starts ticking
+  // ---- on tile moves after the fight ends — see Poison.js) --------------
   property var monsterTable: []        // loaded from monsters.json at boot
   property var equipmentTable: []      // loaded from equipment.json at boot
   property var combat: null            // CombatLoop.newEncounter() object, or null
@@ -556,6 +573,7 @@ Panel {
       leftHand: leftHand, rightHand: rightHand,
       worn: wornAsIndices(),
       pack: pack, spells: spells, effects: heroEffects,
+      poison: heroPoison,
       floorNum: floorNum, seed: floorSeed,
       pos: pos, explored: explored
     }
@@ -612,6 +630,7 @@ Panel {
     heroLevel = run.level || 1; heroXp = run.xp || 0
     heroStats = run.stats || Stats.freshStats()
     heroEffects = run.effects || []
+    heroPoison = run.poison || null
     pack = run.pack || (new Array(12)).fill(null)
     // Hands are stored as COPIES; re-point them at the pack instance so
     // isEquipped() identity holds after the JSON round-trip. A hand not in
@@ -648,6 +667,7 @@ Panel {
     heroHp = 25; heroHpMax = 25; heroMp = 15; heroMpMax = 15
     heroLevel = 1; heroXp = 0
     heroStats = Stats.freshStats()
+    heroPoison = null
     leftHand = null
     // All gear lives in the pack; the slot is a pointer into it. The starter
     // sword rides in slot 0 and starts equipped — so it can be swapped out
@@ -709,9 +729,24 @@ Panel {
     if (np.row !== pos.row || np.col !== pos.col) {
       pos = np
       markExplored(np.row, np.col)
+      tickPoison()
+      if (mode !== "game") return       // poison killed the hero
       trySpawnEncounter()
     }
     debugVista()
+  }
+  // Poison ticks on successful tile changes only (per the design: never on
+  // turning, never on wall bumps). Damage is the monster's flat
+  // PoisonDamage; ticks run 5 moves then the status clears itself.
+  function tickPoison() {
+    if (!heroPoison) return
+    var r = Poison.tick(heroPoison)
+    heroPoison = r.state
+    heroHp = Math.max(0, heroHp - r.damage)
+    console.log("omakon poison ticks for " + r.damage
+      + (r.done ? " (last tick)" : ""))
+    if (heroHp <= 0) { die(); return }
+    saveRun()
   }
   function turn(rel) {
     if (combat) return
@@ -786,6 +821,13 @@ Panel {
         var mdmg = Dice.roll(combat.monster.damageExpr)
         combat.log.push("The " + combat.monster.name + " attacks you for " + mdmg + " damage!")
         heroHp = Math.max(0, heroHp - mdmg)
+        // Poison: the monster envenoms on its first successful hit. The
+        // status doesn't start ticking until the fight ends — movement is
+        // locked during combat, and ticks are movement-driven (Poison.js).
+        if (combat.monster.isPoison && !combat.poisoned) {
+          combat.poisoned = true
+          combat.log.push("You feel poison coursing through your veins!")
+        }
         if (heroHp <= 0) {
           die()
           return
@@ -798,6 +840,18 @@ Panel {
     // read the outcome; the next click closes the encounter.
     if (combat.over && combat.won) {
       grantXp(combat.monster.xp, combat.monster.name)
+      // Poison takes hold as the fight ends. Lucid Crystal (the amulet
+      // whose prose grants poison immunity) blocks the onset entirely;
+      // it's worn-or-not at this moment, no retroactive cure.
+      if (combat.poisoned) {
+        if (poisonImmune()) {
+          combat.log.push("Your amulet wards off the poison.")
+        } else {
+          heroPoison = Poison.start(combat.monster.poisonDamage || 1)
+          combat.log.push("The poison takes hold. (" + heroPoison.dmg
+            + " damage per step, " + heroPoison.movesLeft + " steps)")
+        }
+      }
       var drop = Drops.rollDrop(equipmentTable, floorNum, Math.random)
       if (drop) {
         var packed = giveLoot(drop)
