@@ -304,7 +304,9 @@ Panel {
     heroHpMax = Stats.hpMax(heroStats, heroLevel)
     heroMpMax = Stats.mpMax(heroStats, heroLevel)
     if (out.levelsGained > 0) {
-      lastLevelUpToast = "LEVEL UP → " + out.level + " (+" + out.levelsGained + ")"
+      heroHp = heroHpMax
+      heroMp = heroMpMax
+      lastLevelUpToast = "LEVEL UP → " + out.level + " (+" + out.levelsGained + ") — HP/MP restored"
       popupMode = "alloc"
     }
   }
@@ -312,6 +314,10 @@ Panel {
     heroStats = Stats.assignPoint(heroStats, stat)
     heroHpMax = Stats.hpMax(heroStats, heroLevel)
     heroMpMax = Stats.mpMax(heroStats, heroLevel)
+    // Level-up full restore: the alloc point may have raised max again,
+    // so re-fill here too — the hero always stands back up at 100%.
+    heroHp = heroHpMax
+    heroMp = heroMpMax
   }
   // Combat hooks read the primary stats via combatState().
 
