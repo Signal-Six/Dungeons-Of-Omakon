@@ -29,6 +29,57 @@ var Dice = (typeof require !== "undefined") ? require("./Dice.js") : Dice;
 //   rollFormula("INT/4", 8)           -> 2   (pure INT arithmetic, no dice)
 // Returns an integer (floor division for the / terms), or Infinity for
 // "infinite".
+//
+// tiny arithmetic evaluator for QML — no eval() in Qt's stripped-down
+// JS engine (that's why the original `Math.floor(eval(...))` silently
+// returned 0, breaking heals: hi-tech fix for MP cost, 0 HP healed).
+function evalArith(s, pos) {
+  pos = pos || { i: 0 }
+  function peek() { return s[pos.i] }
+  function eat(ch) { if (peek() === ch) pos.i++; }
+  function skipWs() { while (/\s/.test(peek() || "")) pos.i++ }
+  function parseNum() {
+    skipWs()
+    if (peek() === "(") {
+      pos.i++
+      var v = parseSum()
+      skipWs(); eat(")")
+      return v
+    }
+    var m = /^-?\d+/.exec(s.substring(pos.i))
+    if (!m) throw new Error("bad arithmetic: " + s)
+    pos.i += m[0].length
+    return parseInt(m[0], 10)
+  }
+  function parseProd() {
+    var v = parseNum()
+    while (true) {
+      skipWs()
+      var c = peek()
+      if (c === "*") { pos.i++; v = v * parseNum() }
+      else if (c === "/") { pos.i++; v = Math.floor(v / parseNum()) }
+      else return v
+    }
+  }
+  function parseSum() {
+    var v = parseProd()
+    while (true) {
+      skipWs()
+      var c = peek()
+      if (c === "+") { pos.i++; v = v + parseProd() }
+      else if (c === "-") { pos.i++; v = v - parseProd() }
+      else return v
+    }
+  }
+  return parseSum()
+}
+
+// Substitute INT references in a spell expression and roll/eval it.
+//   rollFormula("1d4+INT", 8)         -> Dice.roll("1d4+8")
+//   rollFormula("1d12+(INT/2)", 8)    -> Dice.roll("1d12+4")
+//   rollFormula("INT/4", 8)           -> 2   (pure INT arithmetic, no dice)
+// Returns an integer (floor division for the / terms), or Infinity for
+// "infinite".
 function rollFormula(expr, int, rng) {
   if (expr === null || expr === undefined || expr === "") return 0;
   var s = String(expr);
@@ -40,25 +91,19 @@ function rollFormula(expr, int, rng) {
   // Bare INT (not part of a longer identifier) → the stat.
   s = s.replace(/\bINT\b/gi, String(int));
   // Pure arithmetic (post-substitution): e.g. "8/4" left over from
-  // INT/4 with no parens. Only if no dice remain.
-  //
-  // eval() is safe here: the regex immediately above whitelists input to
-  // digits, arithmetic operators, parens, and whitespace (no letters, no
-  // identifiers). The expression itself comes from our own spells.csv —
-  // not runtime user input.
+  // INT/4 with no parens. Only if no dice remain. Uses the tiny
+  // recursive-descent evaluator above — QML ships without `eval`.
   if (!/\d+d\d+/i.test(s) && /[\/+*-]/.test(s)) {
-    if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr);
-    // eslint-disable-next-line no-eval
-    return Math.floor(eval(s));
+    if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr)
+    return evalArith(s)
   }
   // Dice.roll handles final arithmetic after dice resolution; it
   // doesn't do "/", so the only remaining / was substituted above.
   if (/\//.test(s)) {
-    if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr);
-    // eslint-disable-next-line no-eval
-    return Math.floor(eval(s));
+    if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr)
+    return evalArith(s)
   }
-  return Dice.roll(s, rng);
+  return Dice.roll(s, rng)
 }
 
 // Classify a spell for cast-time behavior. Purely a read of Effect prose

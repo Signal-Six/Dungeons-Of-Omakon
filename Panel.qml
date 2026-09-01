@@ -2415,65 +2415,6 @@ Panel {
           }
         }
 
-        // ---- Spell info modal (right-click a spell in the book) -----------
-        Rectangle {
-          visible: root.spellInfoName !== ""
-          anchors.centerIn: parent
-          width: 280
-          height: 170
-          color: Color.menu.background
-          border.color: Color.menu.border
-          border.width: 2
-          z: 16
-          Column {
-            anchors.fill: parent; anchors.margins: 10; spacing: 8
-            Text {
-              text: root.spellInfoName
-              color: Color.menu.text
-              font.family: Style.font.menuFamily
-              font.bold: true; font.pixelSize: 13
-            }
-            Text {
-              property var sd: {
-                for (var i = 0; i < root.spellTable.length; i++)
-                  if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
-                return null
-              }
-              text: sd ? ("Cost " + sd.Cost + " MP"
-                + (sd.Damage && sd.Damage !== "0" ? "   dmg " + sd.Damage : "")
-                + (sd.Duration && sd.Duration !== "0" ? "   dur " + sd.Duration : "")) : ""
-              color: Qt.darker(Color.menu.text, 1.4)
-              font.family: Style.font.menuFamily
-              font.pixelSize: 10
-            }
-            Rectangle { width: parent.width; height: 1; color: Color.menu.border }
-            Text {
-              property var sd2: {
-                for (var i = 0; i < root.spellTable.length; i++)
-                  if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
-                return null
-              }
-              width: parent.width
-              wrapMode: Text.WordWrap
-              text: sd2 ? sd2.Description : ""
-              color: Qt.darker(Color.menu.text, 1.3)
-              font.family: Style.font.menuFamily
-              font.pixelSize: 11
-            }
-            Item { height: 1; width: 1 }
-            Text {
-              text: "click anywhere to close"
-              color: Qt.darker(Color.menu.text, 2.0)
-              font.family: Style.font.menuFamily
-              font.pixelSize: 9
-            }
-          }
-          MouseArea {
-            anchors.fill: parent
-            onClicked: root.spellInfoName = ""
-          }
-        }
-
         // ---- Inventory popup (12 slots) ---------------------------------------
         Rectangle {
           visible: root.popupMode === "inventory"
@@ -2613,6 +2554,68 @@ Panel {
             }
           }
         }
+      }
+    }
+
+    // ---- Spell info modal (right-click a spell in the book) -------------
+    // Frame scope so anchors.centerIn resolves against the 640x480 window
+    // (HUD-scope parent-center put the modal half off-screen, same bug the
+    // ALLOC modal had).
+    Rectangle {
+      visible: root.spellInfoName !== ""
+      anchors.centerIn: parent
+      width: 280
+      height: 170
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 16
+      Column {
+        anchors.fill: parent; anchors.margins: 10; spacing: 8
+        Text {
+          text: root.spellInfoName
+          color: Color.menu.text
+          font.family: Style.font.menuFamily
+          font.bold: true; font.pixelSize: 13
+        }
+        Text {
+          property var sd: {
+            for (var i = 0; i < root.spellTable.length; i++)
+              if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
+            return null
+          }
+          text: sd ? ("Cost " + sd.Cost + " MP"
+            + (sd.Damage && sd.Damage !== "0" ? "   dmg " + sd.Damage : "")
+            + (sd.Duration && sd.Duration !== "0" ? "   dur " + sd.Duration : "")) : ""
+          color: Qt.darker(Color.menu.text, 1.4)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 10
+        }
+        Rectangle { width: parent.width; height: 1; color: Color.menu.border }
+        Text {
+          property var sd2: {
+            for (var i = 0; i < root.spellTable.length; i++)
+              if (root.spellTable[i].Name === root.spellInfoName) return root.spellTable[i]
+            return null
+          }
+          width: parent.width
+          wrapMode: Text.WordWrap
+          text: sd2 ? sd2.Description : ""
+          color: Qt.darker(Color.menu.text, 1.3)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 11
+        }
+        Item { height: 1; width: 1 }
+        Text {
+          text: "click anywhere to close"
+          color: Qt.darker(Color.menu.text, 2.0)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 9
+        }
+      }
+      MouseArea {
+        anchors.fill: parent
+        onClicked: root.spellInfoName = ""
       }
     }
 
