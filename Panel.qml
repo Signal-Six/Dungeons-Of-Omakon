@@ -1162,8 +1162,17 @@ Panel {
 
     if (cls === "damage") {
       if (name === "Mana Missile") {
-        // Infinite accuracy, never misses.
-        var mmDmg = Spells.rollFormula(def.Damage, intn, Math.random)
+        // Never miss (Book-of-Power pattern): skip the ACC/DV roll
+        // entirely and apply damage directly. Formula rolls 1d4+INT.
+        var mmDmg
+        try {
+          mmDmg = Spells.rollFormula(def.Damage, intn, Math.random)
+        } catch (e) {
+          console.log("omakon MANA MISSILE formula error: " + e)
+          combat.log.push("The Mana Missile fizzles (formula error).")
+          monsterTurn(); tickActiveSpells()
+          bumpCombatLog(); saveRun(); return true
+        }
         combat.monster.hp -= mmDmg
         combat.log.push("Mana Missile hits the " + combat.monster.name
           + " for " + mmDmg + " damage!")
