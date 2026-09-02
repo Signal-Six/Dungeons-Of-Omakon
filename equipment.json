@@ -634,7 +634,7 @@
     "Accuracy": null,
     "Damage": null,
     "Defense": null,
-    "Description": "A fragile pod that you snap, creating enchanted smoke. Negates the enemy’s next attack.",
+    "Description": "A fragile pod that you snap, creating enchanted smoke. Negates the enemy’s next two attacks.",
     "Type": "Item",
     "Rank": 3,
     "Icon": "󰖝 md_weather_windy"

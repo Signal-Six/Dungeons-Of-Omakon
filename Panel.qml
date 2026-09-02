@@ -218,6 +218,29 @@ Panel {
       bumpCombatLog()
       return
     }
+    // Beacon: one per floor. While lit, the automap draws a gold ring around
+    // the downstairs tile. Refuses to re-trigger if one is already lit (the
+    // item is NOT consumed).
+    if (inst.Name === "Beacon") {
+      if (beaconOn) {
+        beaconMessage = "A beacon is already lit on this floor."
+        popupMode = "beacon"
+        return
+      }
+      var found = false
+      for (var rr = 0; rr < Dungeon.ROWS; rr++)
+        for (var cc = 0; cc < Dungeon.COLS; cc++)
+          if (floor.nodes[rr][cc].feature === "down") { found = true; break }
+      if (!found) {
+        console.log("omakon Beacon finds no staircase on this floor (bug)")
+        return
+      }
+      beaconOn = true
+      beaconFloor = floorNum
+      console.log("omakon beacon lit — the staircase calls to you (F" + floorNum + ")")
+      consumeAt(i)
+      return
+    }
     console.log("omakon " + inst.Name + " used — effect not implemented")
   }
   // Enchant picker state. enchantSourceSlot is the pack slot holding the
@@ -416,6 +439,11 @@ Panel {
   property var floor: Dungeon.generate(floorSeed)
   property var pos: ({ row: floor.start.row, col: floor.start.col, facing: 0 })
 
+  // Beacon: consuming one on this floor plants the beacon on the downstairs
+  // tile; it stays lit until you descend. beaconFloor guards one-per-floor.
+  property bool beaconOn: false
+  property int beaconFloor: 0
+  property string beaconMessage: ""
   function beginDescend() {
     if (floor.nodes[pos.row][pos.col].feature !== "down" || descending) return
     descending = true               // dissolve layer activates; step resets there
@@ -427,6 +455,7 @@ Panel {
     floor = Dungeon.generate(floorSeed)
     pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
     explored = ({})
+    beaconOn = false             // beacon lights one floor only
     markExplored(pos.row, pos.col)
     descending = false
     saveRun()
@@ -1736,6 +1765,7 @@ Panel {
                 property bool seen: root.explored[r + "," + c] === true
                 property bool hero: c === root.pos.col && r === root.pos.row
                 property string feat: root.floor.nodes[r][c].feature
+                property bool isDown: feat === "down"
                 width: 12
                 height: 12
 
@@ -1747,6 +1777,16 @@ Panel {
                     : "#5b5548"
                   border.color: Qt.darker(Color.menu.border, 1.5)
                   border.width: 1
+                }
+                // Beacon highlight: gold ring around the downstairs tile
+                // while the beacon is lit. Underlays the wall bars so the
+                // frame stays visible even on the tile's edges.
+                Rectangle {
+                  visible: root.beaconOn && isDown
+                  anchors.fill: parent
+                  color: "transparent"
+                  border.color: root.gold
+                  border.width: 2
                 }
                 // Per-edge wall lines, overlaid on the tile so the automap
                 // doubles as a debugging truth table for the 3D render.
@@ -2881,6 +2921,44 @@ Panel {
             }
           }
         }
+      }
+    }
+
+    // ---- BEACON notice — one already lit -------------------------------------
+    Rectangle {
+      visible: root.popupMode === "beacon" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 260
+      height: 90
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 20
+      Column {
+        anchors.fill: parent; anchors.margins: 10; spacing: 6
+        Text {
+          text: "BEACON"
+          font.bold: true; font.pixelSize: 12
+          font.family: Style.font.menuFamily; color: "#b09030"
+        }
+        Text {
+          text: root.beaconMessage
+          font.pixelSize: 10
+          font.family: Style.font.menuFamily
+          color: Color.menu.text
+          wrapMode: Text.WordWrap
+          width: parent.width
+        }
+        Text {
+          text: "click anywhere to close"
+          color: Qt.darker(Color.menu.text, 2.0)
+          font.family: Style.font.menuFamily
+          font.pixelSize: 9
+        }
+      }
+      MouseArea {
+        anchors.fill: parent
+        onClicked: root.popupMode = "none"
       }
     }
 
