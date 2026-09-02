@@ -300,6 +300,11 @@ Panel {
   // (one save, not unequip+discard's two).
   function discardItem(i) {
     if (i < 0 || i >= pack.length || !pack[i]) return
+    var it = pack[i]
+    if (it.Name === "The Omatrix") {
+      console.log("omakon The Omatrix pulses — it will not leave your hand")
+      return
+    }
     var s = slotForIndex(i)
     if (s === "rightHand") rightHand = null
     else if (s === "leftHand") leftHand = null
@@ -470,6 +475,14 @@ Panel {
   property bool beaconOn: false
   property int beaconFloor: 0
   property string beaconMessage: ""
+  // Omatrix run state. omatrixPos = "r,c" while the Omatrix still sits on
+  // its spawn tile on F50, null once picked up (or from floors 1..49).
+  // exitsPos = "r,c" for the hidden exit staircase (spawned on pickup,
+  // drawn only while hasOmatrix). hasOmatrix = the item is in the pack.
+  // Persisted in the save (v8) so quitting mid-F50 restores the state.
+  property string omatrixPos: ""
+  property string exitsPos: ""
+  property bool hasOmatrix: false
   function beginDescend() {
     if (floor.nodes[pos.row][pos.col].feature !== "down" || descending) return
     descending = true               // dissolve layer activates; step resets there
@@ -482,6 +495,22 @@ Panel {
     pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
     explored = ({})
     beaconOn = false             // beacon lights one floor only
+    if (floorNum === 50) {
+      // The Omatrix sits on a single tile on this floor, chosen uniformly
+      // at random. (Stairs tile is fine as a host — its pickup takes
+      // priority over the staircase's UI cue; stepping on the tile with an
+      // Omatrix sets off the pickup before any DESCEND click.)
+      var r1 = Math.floor(Math.random() * Dungeon.ROWS)
+      var c1 = Math.floor(Math.random() * Dungeon.COLS)
+      omatrixPos = r1 + "," + c1
+      exitsPos = ""
+      hasOmatrix = false
+      console.log("omakon F50: Omatrix at " + omatrixPos)
+    } else {
+      omatrixPos = ""
+      exitsPos = ""
+      hasOmatrix = false
+    }
     markExplored(pos.row, pos.col)
     descending = false
     saveRun()
@@ -722,6 +751,7 @@ Panel {
       poison: heroPoison,
       activeSpells: Spells.serializeActives(activeSpells),
       floorNum: floorNum, seed: floorSeed,
+      omatrixPos: omatrixPos, exitsPos: exitsPos, hasOmatrix: hasOmatrix,
       pos: pos, explored: explored
     }
   }
@@ -779,6 +809,9 @@ Panel {
     heroEffects = run.effects || []
     heroPoison = run.poison || null
     activeSpells = Spells.reviveActives(run.activeSpells || [], spellTable)
+    omatrixPos = run.omatrixPos || ""
+    exitsPos = run.exitsPos || ""
+    hasOmatrix = !!run.hasOmatrix
     pack = run.pack || (new Array(12)).fill(null)
     // Hands are stored as COPIES; re-point them at the pack instance so
     // isEquipped() identity holds after the JSON round-trip. A hand not in
@@ -831,6 +864,7 @@ Panel {
     floorNum = 1
     floorSeed = (Math.random() * 0x7fffffff) | 0
     floor = Dungeon.generate(floorSeed)
+    omatrixPos = ""; exitsPos = ""; hasOmatrix = false
     pos = ({ row: floor.start.row, col: floor.start.col, facing: 0 })
     explored = ({})
     markExplored(pos.row, pos.col)
@@ -846,6 +880,7 @@ Panel {
     // never comes once the run is over).
     combat = null
     combatVictory = false
+    omatrixPos = ""; exitsPos = ""; hasOmatrix = false
     // Permadeath: archive the run, clear the active run, bump to menu.
     saveArchiveEntry({
       name: runName, started: runStarted,
@@ -853,6 +888,22 @@ Panel {
       score: Save.computeScore(currentState())
     })
     clearRun()      // queue serializes: archive store, then run clear
+    mode = "dead"
+  }
+
+  // Stepping on the hidden exit staircase with the Omatrix wins the run.
+  // Same archive bookkeeping as die(); a "won" flag marks the entry.
+  function winGame() {
+    if (!onExitStairs()) return
+    combat = null
+    combatVictory = false
+    saveArchiveEntry({
+      name: runName, started: runStarted,
+      floor: floorNum, level: heroLevel,
+      score: Save.computeScore(currentState()) + 1000000,  // win flag: six zeros
+    })
+    clearRun()
+    omatrixPos = ""; exitsPos = ""; hasOmatrix = false
     mode = "dead"
   }
 
@@ -880,6 +931,8 @@ Panel {
       if (np.row === pos.row && np.col === pos.col) break   // wall
       pos = np
       markExplored(np.row, np.col)
+      maybePickupOmatrix(np.row, np.col)   // F50 pickup; returns true → handled below
+      if (mode !== "game") return          // safety: pickup shouldn't kill, but same guard as poison
       tickPoison()
       if (mode !== "game") return       // poison killed the hero
       // Fires (burn) tick per combat round AND per tile move; burn state
@@ -999,6 +1052,55 @@ Panel {
     activeSpells = r.active
     for (var i = 0; i < r.expired.length; i++)
       console.log("omakon " + r.expired[i].name + " wears off")
+  }
+  // ---- Omatrix (Floor 50) ------------------------------------------------
+  // The Omatrix sits at omatrixPos ("r,c") until the player steps onto the
+  // tile. Pickup moves the item into the first empty pack slot, spawns the
+  // hidden ascending staircase at exitsPos (chosen with a Chebyshev distance
+  // of at least 3 from the pickup so the player must search the floor), and
+  // flags hasOmatrix. Only one pickup per floor: the flag clears the spawn
+  // tile. Descending off F50 or dying clears all three.
+  function hasItemNamed(name) {
+    for (var i = 0; i < pack.length; i++)
+      if (pack[i] && pack[i].Name === name) return true
+    return false
+  }
+  function maybePickupOmatrix(r, c) {
+    if (floorNum !== 50) return false
+    if (omatrixPos === (r + "," + c) && !hasItemNamed("The Omatrix")) {
+      pickUpOmatrix()
+      return true
+    }
+    return false
+  }
+  function pickUpOmatrix() {
+    for (var i = 0; i < pack.length; i++) {
+      if (!pack[i]) {
+        var next = pack.slice()
+        next[i] = { Name: "The Omatrix" }
+        pack = next
+        break
+      }
+    }
+    omatrixPos = ""
+    var pr = pos.row, pc = pos.col
+    var candidates = []
+    for (var rr = 0; rr < Dungeon.ROWS; rr++)
+      for (var cc = 0; cc < Dungeon.COLS; cc++) {
+        var dr = Math.abs(rr - pr), dc = Math.abs(cc - pc)
+        if (Math.max(dr, dc) >= 3) candidates.push(rr + "," + cc)
+      }
+    if (candidates.length === 0) {
+      for (rr = 0; rr < Dungeon.ROWS; rr++)
+        for (cc = 0; cc < Dungeon.COLS; cc++)
+          candidates.push(rr + "," + cc)
+    }
+    exitsPos = candidates[Math.floor(Math.random() * candidates.length)]
+    hasOmatrix = true
+    console.log("omakon Omatrix picked up — exit staircase spawned at " + exitsPos)
+  }
+  function onExitStairs() {
+    return hasOmatrix && exitsPos === (pos.row + "," + pos.col)
   }
   function isSpellActive(name) {
     for (var i = 0; i < activeSpells.length; i++)
@@ -1259,10 +1361,33 @@ Panel {
   }
 
   // ---- Encounter lifecycle --------------------------------------------------
-  // Called after every successful tile change. Monsters.rollSpawn returns a
-  // monsters.json row or null per the agreed spawn formula.
+  // Called after every successful tile change. Omatrix's pickup raises the
+  // spawn rate on F50 by +5% (0.15 -> 0.20) and adds Omakron to the pool
+  // while hasOmatrix.
   function trySpawnEncounter() {
     if (monsterTable.length === 0) return   // table not loaded yet (boot race)
+    var pool = monsterTable
+    if (floorNum === 50 && hasOmatrix) {
+      // Roll the flat 15%, then the Omatrix's extra 5% if the first missed.
+      // Pool = F50 ± (1d3-1), with Omakron injected.
+      if (Math.random() >= 0.20) return
+      var omakron = null
+      for (var i = 0; i < monsterTable.length; i++)
+        if (monsterTable[i].Name === "Omakron") { omakron = monsterTable[i]; break }
+      var others = []
+      var k = Math.floor(Math.random() * 3)          // 1d3 - 1
+      var target = 50 + k
+      for (var i = 0; i < monsterTable.length; i++) {
+        var d = monsterTable[i].Depth
+        if (d === 50 || d === target) others.push(monsterTable[i])
+      }
+      if (omakron) others.push(omakron)
+      if (others.length === 0) return
+      var row = others[Math.floor(Math.random() * others.length)]
+      combat = CombatLoop.newEncounter(row)
+      bumpCombatLog()
+      return
+    }
     var row = Monsters.rollSpawn(monsterTable, floorNum, Math.random)
     if (!row) return
     combat = CombatLoop.newEncounter(row)
@@ -1790,6 +1915,30 @@ Panel {
           MouseArea { anchors.fill: parent; onClicked: root.beginDescend() }
         }
 
+        // Ascend button — appears only while the player holds the Omatrix
+        // on Floor 50 and is standing on the exit staircase.
+        Rectangle {
+          id: ascendBtn
+          visible: root.onExitStairs()
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: 72
+          width: 120
+          height: 30
+          color: "#b03030"
+          border.color: Color.menu.border
+          border.width: 2
+          Text {
+            anchors.centerIn: parent
+            text: "ASCEND"
+            color: "#f8e8e0"
+            font.family: Style.font.menuFamily
+            font.bold: true
+            font.pixelSize: 13
+          }
+          MouseArea { anchors.fill: parent; onClicked: root.winGame() }
+        }
+
         // ---- Automap (toggleable; top-right corner) -------------------------
         Rectangle {
           id: automap
@@ -1819,6 +1968,8 @@ Panel {
                 property bool hero: c === root.pos.col && r === root.pos.row
                 property string feat: root.floor.nodes[r][c].feature
                 property bool isDown: feat === "down"
+                property bool isOmatrix: root.omatrixPos === (r + "," + c)
+                property bool isExit: root.exitsPos === (r + "," + c) && root.hasOmatrix
                 width: 12
                 height: 12
 
@@ -1839,6 +1990,23 @@ Panel {
                   anchors.fill: parent
                   color: "transparent"
                   border.color: root.gold
+                  border.width: 2
+                }
+                // Omatrix tile (Floor 50, pre-pickup): pulsing gold frame.
+                Rectangle {
+                  visible: isOmatrix
+                  anchors.fill: parent
+                  color: "transparent"
+                  border.color: "#ffd040"
+                  border.width: 2
+                }
+                // Exit staircase (Floor 50, while the player holds the
+                // Omatrix): red-gold frame — distinct from the beacon gold.
+                Rectangle {
+                  visible: isExit
+                  anchors.fill: parent
+                  color: "transparent"
+                  border.color: "#ff6a50"
                   border.width: 2
                 }
                 // Per-edge wall lines, overlaid on the tile so the automap
