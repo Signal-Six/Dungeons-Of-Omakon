@@ -1074,14 +1074,21 @@ Panel {
     return false
   }
   function pickUpOmatrix() {
-    for (var i = 0; i < pack.length; i++) {
-      if (!pack[i]) {
-        var next = pack.slice()
-        next[i] = { Name: "The Omatrix" }
-        pack = next
-        break
-      }
+    // Full pack? Block the pickup behind a discard-choice modal: the player
+    // MUST have room for the Omatrix (dropping it would softlock the run —
+    // the only path to victory is holding it). popupMode "omatrix" lists
+    // the pack; choosing a slot discards it and re-runs this function.
+    var free = -1
+    for (var i = 0; i < pack.length; i++)
+      if (!pack[i]) { free = i; break }
+    if (free < 0) {
+      popupMode = "omatrix"
+      console.log("omakon pack is full — choose an item to discard for the Omatrix")
+      return
     }
+    var next = pack.slice()
+    next[free] = { Name: "The Omatrix" }
+    pack = next
     omatrixPos = ""
     var pr = pos.row, pc = pos.col
     var candidates = []
@@ -1101,6 +1108,23 @@ Panel {
   }
   function onExitStairs() {
     return hasOmatrix && exitsPos === (pos.row + "," + pos.col)
+  }
+  // Discard-choice modal (popupMode "omatrix") pick: the pack was full when
+  // the hero stepped on the Omatrix tile. Chosen slot is discarded via the
+  // normal discard path (clears its equip pointer if set), then pickup
+  // retries with room guaranteed.
+  function discardForOmatrix(i) {
+    if (i < 0 || i >= pack.length || !pack[i]) return
+    popupMode = "none"
+    discardItem(i)
+    pickUpOmatrix()
+    saveRun()
+  }
+  function cancelOmatrixDiscard() {
+    // Step off the tile first if you want to pick it up later — canceling
+    // leaves the Omatrix on the ground at omatrixPos.
+    popupMode = "none"
+    console.log("omakon you back away from the Omatrix for now")
   }
   function isSpellActive(name) {
     for (var i = 0; i < activeSpells.length; i++)
@@ -1577,6 +1601,7 @@ Panel {
         if (root.infoSlot >= 0) { root.infoSlot = -1; return }
         if (root.popupMode === "blink") { root.cancelBlink(); return }
         if (root.popupMode === "enchant") { root.cancelEnchant(); return }
+        if (root.popupMode === "omatrix") { root.cancelOmatrixDiscard(); return }
         if (root.popupMode !== "none") root.popupMode = "none"
         else if (root.mode === "menu") root.close()
         else root.close()      // close always saves in game mode
@@ -3180,6 +3205,90 @@ Panel {
       MouseArea {
         anchors.fill: parent
         onClicked: root.popupMode = "none"
+      }
+    }
+
+    // ---- OMATRIX discard-choice modal ----------------------------------------
+    // Reached from pickUpOmatrix() when the pack is full. Every pack item is
+    // listed; clicking discards it and the Omatrix takes its slot. Canceling
+    // leaves the Omatrix on the ground (you can step back later with room).
+    Rectangle {
+      visible: root.popupMode === "omatrix" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 320
+      height: Math.min(360, omCol.contentHeight + 24)
+      color: Color.menu.background
+      border.color: root.gold
+      border.width: 2
+      z: 20
+      Flickable {
+        anchors.fill: parent; anchors.margins: 10
+        contentHeight: omCol.height
+        clip: true
+        Column {
+          id: omCol
+          width: parent.width; spacing: 6
+          Text {
+            text: "THE OMATRIX"
+            font.bold: true; font.pixelSize: 13
+            font.family: Style.font.menuFamily; color: root.gold
+          }
+          Text {
+            text: "Your pack is full. Discard one item to make room for the Omatrix — the only way out of this place."
+            font.pixelSize: 10
+            font.family: Style.font.menuFamily
+            color: Qt.darker(Color.menu.text, 1.4)
+            wrapMode: Text.WordWrap
+            width: parent.width
+          }
+          Repeater {
+            model: 12
+            Rectangle {
+              property int slot: index
+              property var item: root.pack[slot]
+              visible: item !== null && item !== undefined
+              width: omCol.width; height: 24
+              color: Color.menu.selectedBackground
+              border.color: Color.menu.border; border.width: 1
+              Row {
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                spacing: 8
+                Text {
+                  text: item ? item.Name : ""
+                  font.pixelSize: 11; font.family: Style.font.menuFamily
+                  color: Color.menu.text
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  visible: root.isEquipped(slot)
+                  text: "equipped"
+                  font.pixelSize: 9; font.family: Style.font.menuFamily
+                  color: root.gold
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: root.discardForOmatrix(slot)
+              }
+            }
+          }
+          Rectangle {
+            width: omCol.width; height: 22
+            color: "transparent"
+            border.color: Color.menu.border; border.width: 1
+            Text {
+              anchors.centerIn: parent
+              text: "Step back for now (Omatrix stays here)"
+              font.pixelSize: 10; font.family: Style.font.menuFamily
+              color: Qt.darker(Color.menu.text, 1.4)
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.cancelOmatrixDiscard()
+            }
+          }
+        }
       }
     }
 
