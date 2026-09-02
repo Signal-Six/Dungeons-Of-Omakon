@@ -366,6 +366,12 @@ Panel {
     var r = resolveInstance(inst)
     return (r && r.name) ? r.name : "your fists"
   }
+  // Flag helpers for the two weapon-specific rules in equipment.json. The
+  // Book of Power's "infinite" accuracy is read in the table as the string
+  // "infinite" (resolveInstance converts to Infinity); the Sapien Cannon's
+  // "infinite" damage marks its kill-on-hit rider.
+  function isBookOfPower(inst) { return !!(inst && inst.Name === "Book of Power") }
+  function isSapienCannon(inst) { return !!(inst && inst.Name === "Sapien Cannon") }
   // Null-safe glyph accessor for the UI: "" when the table isn't loaded yet
   // or the entry is missing, so Text nodes can fall back to their own glyph.
   function iconOf(inst) {
@@ -1300,9 +1306,36 @@ Panel {
     var wlabel = weaponLabel(rightHand)
     var strikes = isSpellActive("Haste") ? 2 : 1
     for (var round = 0; round < strikes && !combat.over; round++) {
+      if (isBookOfPower(rightHand)) {
+        // Book of Power: "cannot be dodged" — skips the ACC/DV roll entirely
+        // and applies damage directly. Damage still uses the weapon's own
+        // pool (10 base) + STR + d4 via Combat.attack's damage branch; the
+        // ACC branch is bypassed here so the log reads correctly (no
+        // "∞+2d6=∞" noise).
+        var pdmg = Combat.baseDamageOf(state) + Dice.roll("1d4")
+        combat.monster.hp -= pdmg
+        combat.log.push("You read from the Book of Power — " + combat.monster.name
+          + " takes " + pdmg + " damage!")
+        if (combat.monster.hp <= 0) {
+          combat.log.push("The " + combat.monster.name + " dies!")
+          combat.over = true
+          combat.won = true
+          break
+        }
+        continue
+      }
       var res = Combat.attack(state, combat.monster)
       if (!res.hit) {
         combat.log.push("You strike at the " + combat.monster.name + " with " + wlabel + " — miss. (ACC " + res.accuracy + "+2d6=" + res.accRoll + " vs DV " + res.dv + ")")
+      } else if (isSapienCannon(rightHand)) {
+        // Rider: any hit obliterates the target. Damage field is ignored
+        // (the 1 DAM the table suggests is a bookkeeping value only).
+        combat.monster.hp = 0
+        combat.log.push("The Sapien Cannon's beam disintegrates the "
+          + combat.monster.name + "!")
+        combat.over = true
+        combat.won = true
+        break
       } else {
         var dmg = res.damage
         combat.log.push("You strike the " + combat.monster.name + " with " + wlabel + " for " + dmg + " damage (" + res.baseDamage + "+" + res.d4 + ")!")
