@@ -241,6 +241,26 @@ Panel {
       consumeAt(i)
       return
     }
+    // Behelit: immediate descent, costs 5 max HP. Floor 50 refuses outright
+    // (item kept). Below 5 max HP the sacrifice still consumes the egg but
+    // the descent doesn't trigger — the hero is "too weak".
+    if (inst.Name === "Behelit") {
+      if (floorNum === 50) {
+        console.log("omakon Behelit fizzles — the dungeon ends here")
+        return
+      }
+      if (heroHpMax <= 5) {
+        consumeAt(i)
+        console.log("omakon Behelit shatters — you are too weak to sacrifice your life force")
+        return
+      }
+      heroHpMax -= 5
+      if (heroHp > heroHpMax) heroHp = heroHpMax
+      console.log("omakon Behelit cracks open — you descend (max HP now " + heroHpMax + ")")
+      var next = pack.slice(); next[i] = null; pack = next  // consume without the save — completeDescend() saves the full state
+      completeDescend()
+      return
+    }
     console.log("omakon " + inst.Name + " used — effect not implemented")
   }
   // Enchant picker state. enchantSourceSlot is the pack slot holding the
