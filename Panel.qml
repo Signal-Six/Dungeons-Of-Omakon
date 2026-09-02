@@ -14,6 +14,7 @@ import "Dice.js" as Dice
 import "CombatLoop.js" as CombatLoop
 import "Poison.js" as Poison
 import "Spells.js" as Spells
+import "Enchant.js" as Enchant
 
 // Dungeons of Omakon — game window.
 // Phase 3: real procedurally generated floors (Dungeon.js) rendered as a
@@ -187,7 +188,51 @@ Panel {
       }
       consumeAt(i); return
     }
+    // Scroll of Enchantment: the Effect row gates which equipment Types are
+    // legal targets; the pack is scanned for matches and a picker modal
+    // opens. The scroll is consumed only when a target is chosen.
+    if (e && e.Effect && e.Effect.type === "enchant") {
+      enchantSourceSlot = i
+      enchantCandidates = Enchant.candidates(pack, equipmentTable, e)
+      if (enchantCandidates.length === 0) {
+        console.log("omakon " + inst.Name + ": nothing you carry can be enchanted")
+        enchantSourceSlot = -1
+        enchantCandidates = []
+        return
+      }
+      infoSlot = -1
+      popupMode = "enchant"
+      return
+    }
     console.log("omakon " + inst.Name + " used — effect not implemented")
+  }
+  // Enchant picker state. enchantSourceSlot is the pack slot holding the
+  // scroll (consumed on resolve); enchantCandidates mirrors
+  // Enchant.candidates() output for the modal's Repeater.
+  property int enchantSourceSlot: -1
+  property var enchantCandidates: []
+  function applyEnchant(targetPackIndex) {
+    if (enchantSourceSlot < 0) return
+    var scrollRow = equipmentEntry(pack[enchantSourceSlot])
+    if (!scrollRow || !scrollRow.Effect) { cancelEnchant(); return }
+    var target = pack[targetPackIndex]
+    if (!target) { cancelEnchant(); return }
+    var next = Enchant.apply(target, scrollRow)
+    var newPack = pack.slice()
+    newPack[targetPackIndex] = next
+    newPack[enchantSourceSlot] = null      // consume the scroll
+    pack = newPack
+    console.log("omakon " + next.Name + " enchanted to +" + next.Enchant
+      + " via " + scrollRow.Name)
+    enchantSourceSlot = -1
+    enchantCandidates = []
+    popupMode = "none"
+    saveRun()
+  }
+  function cancelEnchant() {
+    enchantSourceSlot = -1
+    enchantCandidates = []
+    popupMode = "none"
   }
   function consumeAt(i) {
     var next = pack.slice(); next[i] = null; pack = next
@@ -1303,6 +1348,7 @@ Panel {
       Keys.onEscapePressed: {
         if (root.infoSlot >= 0) { root.infoSlot = -1; return }
         if (root.popupMode === "blink") { root.cancelBlink(); return }
+        if (root.popupMode === "enchant") { root.cancelEnchant(); return }
         if (root.popupMode !== "none") root.popupMode = "none"
         else if (root.mode === "menu") root.close()
         else root.close()      // close always saves in game mode
@@ -2731,6 +2777,86 @@ Panel {
             MouseArea {
               anchors.fill: parent
               onClicked: root.cancelBlink()
+            }
+          }
+        }
+      }
+    }
+
+    // ---- ENCHANT modal — pick a weapon/shield/armor/helmet to enchant -------
+    // Triggered from useConsumable() when a Scroll of Enchantment row with an
+    // Effect block is clicked. enchantCandidates was rebuilt from the pack at
+    // that moment; a click bumps the target's Enchant and consumes the scroll
+    // in slot enchantSourceSlot.
+    Rectangle {
+      visible: root.popupMode === "enchant" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 300
+      height: Math.min(320, enchCol.contentHeight + 24)
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 20
+      Flickable {
+        anchors.fill: parent; anchors.margins: 10
+        contentHeight: enchCol.height
+        clip: true
+        Column {
+          id: enchCol
+          width: parent.width; spacing: 6
+          Text {
+            text: "ENCHANT — choose equipment"
+            font.bold: true; font.pixelSize: 12
+            font.family: Style.font.menuFamily; color: "#b09030"
+          }
+          Text {
+            text: "The scroll will be consumed. Enchantment stacks."
+            font.pixelSize: 9
+            font.family: Style.font.menuFamily
+            color: Qt.darker(Color.menu.text, 1.6)
+          }
+          Repeater {
+            model: root.enchantCandidates
+            Rectangle {
+              property var t: modelData
+              width: enchCol.width; height: 24
+              color: Color.menu.selectedBackground
+              border.color: Color.menu.border; border.width: 1
+              Row {
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                spacing: 8
+                Text {
+                  text: t.name
+                  font.pixelSize: 11; font.family: Style.font.menuFamily
+                  color: Color.menu.text
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: t.currentEnchant > 0 ? ("+" + t.currentEnchant + " \u2192 +" + (t.currentEnchant + 1)) : "+0 \u2192 +1"
+                  font.pixelSize: 9; font.family: Style.font.menuFamily
+                  color: Qt.darker(Color.menu.text, 1.7)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: root.applyEnchant(t.index)
+              }
+            }
+          }
+          Rectangle {
+            width: enchCol.width; height: 22
+            color: "transparent"
+            border.color: Color.menu.border; border.width: 1
+            Text {
+              anchors.centerIn: parent
+              text: "Cancel (scroll kept)"
+              font.pixelSize: 10; font.family: Style.font.menuFamily
+              color: Qt.darker(Color.menu.text, 1.4)
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.cancelEnchant()
             }
           }
         }
