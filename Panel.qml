@@ -204,6 +204,20 @@ Panel {
       popupMode = "enchant"
       return
     }
+    // Bindor's Deceit: combat-out-of-position escape utility. Snap the pod
+    // (consumes the item) -> the monster's next 2 swings are negated, giving
+    // the player free turns to heal/buff/run once escape exists.
+    if (inst.Name === "Bindor’s Deceit") {
+      if (!combat || combat.over) {
+        console.log("omakon Bindor's Deceit fizzles: no enemy in reach")
+        return
+      }
+      combat.deceitLeft = 2
+      combat.log.push("You snap the pod — enchanted smoke floods the arena!")
+      consumeAt(i)
+      bumpCombatLog()
+      return
+    }
     console.log("omakon " + inst.Name + " used — effect not implemented")
   }
   // Enchant picker state. enchantSourceSlot is the pack slot holding the
@@ -1070,6 +1084,13 @@ Panel {
   // Monster retaliation shared by attacks and spell casts in combat.
   function monsterTurn() {
     if (!combat || combat.over) return
+    // Bindor's Deceit: the smoke holds for exactly 2 incoming swings.
+    if (combat.deceitLeft && combat.deceitLeft > 0) {
+      combat.deceitLeft--
+      combat.log.push("The smoke blinds the " + combat.monster.name
+        + " — attack negated! (" + combat.deceitLeft + " left)")
+      return
+    }
     if (combat.slipNext) {
       combat.slipNext = false
       combat.log.push("The " + combat.monster.name + " loses its footing — no attack!")
