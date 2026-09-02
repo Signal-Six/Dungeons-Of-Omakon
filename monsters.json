@@ -331,7 +331,7 @@
     "isPoison": 0,
     "PoisonDamage": null,
     "Name": "Darkstalker",
-    "Depth": 15,
+    "Depth": 17,
     "Icon": "U+f0825",
     "Color": "white"
   },
@@ -838,5 +838,33 @@
     "Depth": 50,
     "Icon": "U+ed64",
     "Color": "red"
+  },
+  {
+    "HP": 800,
+    "DV": 180,
+    "EXP": 400,
+    "DAMAGE": "8d10",
+    "ACC": "5+5d10",
+    "isMagic": 0,
+    "isPoison": 0,
+    "PoisonDamage": null,
+    "Name": "Ogre",
+    "Depth": 19,
+    "Icon": "U+f0e9b",
+    "Color": "white"
+  },
+   {
+    "HP": 800,
+    "DV": 180,
+    "EXP": 400,
+    "DAMAGE": "1d8+2d10",
+    "ACC": "6d3+5d8",
+    "isMagic": 0,
+    "isPoison": 0,
+    "PoisonDamage": null,
+    "Name": "Dire Bat",
+    "Depth": 18,
+    "Icon": "U+f0b5f",
+    "Color": "white"
   }
 ]
