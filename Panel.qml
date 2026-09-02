@@ -760,7 +760,6 @@ Panel {
 
   function move(dir) {
     if (combat) return                  // encounter in progress: movement locked
-    if (blinkPending) return            // waiting on a target click
     var steps = isSpellActive("Flyer Fins") ? 2 : 1
     for (var s = 0; s < steps; s++) {
       var np = Dungeon.move(floor, pos, dir)
@@ -777,6 +776,91 @@ Panel {
       if (combat) break                 // Flyer Fins second step blocked by fight
     }
     debugVista()
+  }
+
+  // ---- Blink targeting --------------------------------------------------------
+  // Every cell the player can currently SEE, forward first. Derived from the
+  // vista slices: the ahead corridor stops at the first visible end wall; a
+  // side passage is listed only when the partition into it is open (the hero
+  // could actually step into it from the corridor), and its length is capped
+  // by the same ahead-cone distance so you never blink PAST the wall you'd
+  // otherwise run into. Pure math on `view` — node-testable logic shape,
+  // same guard Dungeon.js uses for in-bounds.
+  function computeBlinkTargets() {
+    var v = view
+    var f = pos.facing
+    var leftD = (f + 3) % 4, rightD = (f + 1) % 4
+    var targets = []
+    var seen = {}                       // a side passage can coincide with
+                                        // the next depth's side cell — dedupe
+    function push(row, col, dist, label) {
+      var k = row + "," + col
+      if (seen[k]) return
+      seen[k] = true
+      targets.push({ row: row, col: col, dist: dist, label: label })
+    }
+    var featGlyph = function(feat) {
+      return feat === "down" ? " \u2193" : feat === "up" ? " \u2191" : ""
+    }
+    for (var d = 1; d <= v.length; d++) {
+      var s = v[d - 1]
+      if (!s || !s.visible) break
+      var ar = pos.row + Dungeon.DR[f] * d
+      var ac = pos.col + Dungeon.DC[f] * d
+      if (ar < 0 || ar >= Dungeon.ROWS || ac < 0 || ac >= Dungeon.COLS) break
+      push(ar, ac, d, "ahead" + (s.feature === "down" ? " \u2193 stairs down"
+        : s.feature === "up" ? " \u2191 stairs up" : ""))
+      // open partition into a side passage at this depth: the side cell is
+      // visible, and its own end-wall row extends the view one band further
+      // right (up to sideL.endDist cells along the side direction). This
+      // trace duplicates Dungeon.vista's traceSidePassage math so a side
+      // cell beyond a CLOSER ahead end wall is still offered (it genuinely
+      // is visible — the side corridor turns inside the vista) but a cell
+      // past the side passage's own end wall never is.
+      var sides = [
+        { open: !s.left,  sideL: s.sideL, dir: leftD,  name: "left"  },
+        { open: !s.right, sideL: s.sideR, dir: rightD, name: "right" }
+      ]
+      for (var k = 0; k < 2; k++) {
+        var sd = sides[k]
+        if (!sd.open || !sd.sideL || sd.sideL.side) continue   // closed partition
+        var span = sd.sideL.endDist === 0 ? 4 : sd.sideL.endDist
+        for (var j = 1; j <= span; j++) {
+          var sr = ar + Dungeon.DR[sd.dir] * j
+          var sc = ac + Dungeon.DC[sd.dir] * j
+          if (sr < 0 || sr >= Dungeon.ROWS || sc < 0 || sc >= Dungeon.COLS) break
+          var feat = floor.nodes[sr][sc].feature
+          push(sr, sc, d + j, sd.name + " passage" + featGlyph(feat))
+        }
+      }
+      if (s.end) break      // end wall terminates the ahead corridor
+    }
+    return targets
+  }
+
+  function doBlinkTo(i) {
+    if (i < 0 || i >= blinkTargets.length) return
+    var t = blinkTargets[i]
+    pos = { row: t.row, col: t.col, facing: pos.facing }
+    markExplored(t.row, t.col)
+    blinkTargets = []
+    popupMode = "none"
+    console.log("omakon blinked to " + t.row + "," + t.col)
+    // Blink is an out-of-combat spell; tick durations like a tile move,
+    // then the arrival tile may spawn an encounter (same as walking in).
+    tickActiveSpells()
+    if (!isSpellActive("Shadow Globe")) trySpawnEncounter()
+    saveRun()
+  }
+
+  function cancelBlink() {
+    // Spell was already paid: refund so a misclick isn't a 4-MP loss.
+    var def = Spells.findByName(spellTable, "Blink")
+    if (def) heroMp += def.Cost
+    blinkTargets = []
+    popupMode = "none"
+    console.log("omakon blink cancelled (MP refunded)")
+    saveRun()
   }
   // Poison ticks on successful tile changes only (per the design: never on
   // turning, never on wall bumps). Damage is the monster's flat
@@ -821,15 +905,17 @@ Panel {
   // Cast a learned spell by name. Returns true if it fired. Attack spells
   // require combat and target the current monster. Buffs push onto
   // activeSpells (their effects are read by combatState/move/etc at
-  // resolution time). Blink enters move-twice targeting via blinkPending.
-  property bool blinkPending: false
+  // resolution time). Blink opens the target chooser modal via
+  // blinkTargets (it is rejected while combat is active).
+  property var blinkTargets: []
   property string spellInfoName: ""
   function castSpell(name) {
     var def = Spells.findByName(spellTable, name)
     if (!def) return false
     if (heroMp < def.Cost) { console.log("omakon not enough MP for " + name); return false }
     var cls = Spells.classify(def)
-    if (cls === "damage" && !combat) return false   // nothing to hit
+    if (cls === "damage" && !combat) return false        // nothing to hit
+    if (cls === "blink" && combat) return false          // no teleporting out of a fight
 
     heroMp -= def.Cost
     var intn = heroStats.int || 0
@@ -908,8 +994,16 @@ Panel {
     }
 
     if (cls === "blink") {
-      blinkPending = true      // automap click resolves the target
-      console.log("omakon blink: click a visible tile")
+      blinkTargets = computeBlinkTargets()
+      if (blinkTargets.length === 0) {
+        // Refund: nothing on offer (shouldn't happen — you can always see
+        // one cell ahead — but never eat MP for a no-op).
+        heroMp += def.Cost
+        console.log("omakon blink fizzles: no visible destination")
+        saveRun(); return false
+      }
+      popupMode = "blink"
+      console.log("omakon blink: choose a destination (" + blinkTargets.length + " tiles)")
       saveRun(); return true
     }
 
@@ -1208,6 +1302,7 @@ Panel {
 
       Keys.onEscapePressed: {
         if (root.infoSlot >= 0) { root.infoSlot = -1; return }
+        if (root.popupMode === "blink") { root.cancelBlink(); return }
         if (root.popupMode !== "none") root.popupMode = "none"
         else if (root.mode === "menu") root.close()
         else root.close()      // close always saves in game mode
@@ -2414,7 +2509,7 @@ Panel {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: function(m) {
                   if (m.button === Qt.RightButton) root.spellInfoName = modelData.Name
-                  else { root.castSpell(modelData.Name); root.popupMode = "none" }
+                  else root.castSpell(modelData.Name)
                 }
               }
             }
@@ -2557,6 +2652,85 @@ Panel {
                 root.assignStat(s.k)
                 if ((root.heroStats && root.heroStats.unspent || 0) <= 0) root.popupMode = "none"
               }
+            }
+          }
+        }
+      }
+    }
+
+    // ---- BLINK modal — pick a visible tile to teleport to ----------------------
+    // Frame-scope (same reasoning as the ALLOC modal: HUD-parented centering
+    // drops half the modal off the window). Targets were computed at cast time
+    // into root.blinkTargets; a click resolves the teleport, Cancel refunds.
+    Rectangle {
+      visible: root.popupMode === "blink" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 300
+      height: Math.min(320, blinkCol.contentHeight + 24)
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 20
+      Flickable {
+        anchors.fill: parent; anchors.margins: 10
+        contentHeight: blinkCol.height
+        clip: true
+        Column {
+          id: blinkCol
+          width: parent.width; spacing: 6
+          Text {
+            text: "BLINK — choose a destination"
+            font.bold: true; font.pixelSize: 12
+            font.family: Style.font.menuFamily; color: "#b09030"
+          }
+          Text {
+            text: "Only tiles you can see are listed. Walls block sight."
+            font.pixelSize: 9
+            font.family: Style.font.menuFamily
+            color: Qt.darker(Color.menu.text, 1.6)
+          }
+          Repeater {
+            model: root.blinkTargets
+            Rectangle {
+              property var t: modelData
+              width: blinkCol.width; height: 24
+              color: Color.menu.selectedBackground
+              border.color: Color.menu.border; border.width: 1
+              Row {
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                spacing: 8
+                Text {
+                  text: t.label
+                  font.pixelSize: 11; font.family: Style.font.menuFamily
+                  color: Color.menu.text
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: t.dist + " tile" + (t.dist === 1 ? "" : "s")
+                  font.pixelSize: 9; font.family: Style.font.menuFamily
+                  color: Qt.darker(Color.menu.text, 1.7)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: root.doBlinkTo(index)
+              }
+            }
+          }
+          Rectangle {
+            width: blinkCol.width; height: 22
+            color: "transparent"
+            border.color: Color.menu.border; border.width: 1
+            Text {
+              anchors.centerIn: parent
+              text: "Cancel (MP refunded)"
+              font.pixelSize: 10; font.family: Style.font.menuFamily
+              color: Qt.darker(Color.menu.text, 1.4)
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.cancelBlink()
             }
           }
         }
