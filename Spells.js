@@ -21,14 +21,9 @@
 // to Dice for everything else. The "(INT/n)" pattern appears inside
 // parens — we evaluate those as integer division.
 
-var Dice = (typeof require !== "undefined") ? require("./Dice.js") : Dice;
-
-// Substitute INT references in a spell expression and roll/eval it.
-//   rollFormula("1d4+INT", 8)         -> Dice.roll("1d4+8")
-//   rollFormula("1d12+(INT/2)", 8)    -> Dice.roll("1d12+4")
-//   rollFormula("INT/4", 8)           -> 2   (pure INT arithmetic, no dice)
-// Returns an integer (floor division for the / terms), or Infinity for
-// "infinite".
+// NB: we don't import Dice here — in QML each `import "X.js" as Y` is a
+// scoped module, and a `try { require(...) } catch {}` fallback can't see
+// Qt's imports. Spells.js implements its own tiny roller (rollDiceExpr).
 //
 // tiny arithmetic evaluator for QML — no eval() in Qt's stripped-down
 // JS engine (that's why the original `Math.floor(eval(...))` silently
@@ -74,9 +69,39 @@ function evalArith(s, pos) {
   return parseSum()
 }
 
+// In QML each `import "X.js" as Y` is a scoped module; the top-level
+// `var Dice = require(...)` fallback yields undefined in QML because
+// there's no CommonJS loader. We can't rely on Dice.js being in scope
+// from a sibling QML import — and we shouldn't. Implement the dice roll
+// inline (mirrors Dice.roll's grammar: "[+/-]N?dN" + integer terms,
+// left-to-right). Throws on garbage, same loud-fail contract.
+function rollDiceExpr(expr, rng) {
+  rng = rng || Math.random;
+  var s = String(expr).replace(/\s+/g, "");
+  if (s === "") throw new Error("Spells.rollDiceExpr: empty expression");
+  var total = 0;
+  var parts = s.match(/[+-]?[^+-]+/g);
+  if (!parts) throw new Error("Spells.rollDiceExpr: cannot parse '" + expr + "'");
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i];
+    var m = p.match(/^([+-]?)(\d*)d(\d+)$/i);
+    if (m) {
+      var sign = m[1] === "-" ? -1 : 1;
+      var n = m[2] === "" ? 1 : parseInt(m[2], 10);
+      var sides = parseInt(m[3], 10);
+      for (var d = 0; d < n; d++) total += sign * (1 + Math.floor(rng() * sides));
+      continue;
+    }
+    var c = p.match(/^([+-]?\d+)$/);
+    if (c) { total += parseInt(c[1], 10); continue; }
+    throw new Error("Spells.rollDiceExpr: bad term '" + p + "'");
+  }
+  return total;
+}
+
 // Substitute INT references in a spell expression and roll/eval it.
-//   rollFormula("1d4+INT", 8)         -> Dice.roll("1d4+8")
-//   rollFormula("1d12+(INT/2)", 8)    -> Dice.roll("1d12+4")
+//   rollFormula("1d4+INT", 8)         -> "1d4+8"
+//   rollFormula("1d12+(INT/2)", 8)    -> "1d12+4"
 //   rollFormula("INT/4", 8)           -> 2   (pure INT arithmetic, no dice)
 // Returns an integer (floor division for the / terms), or Infinity for
 // "infinite".
@@ -97,13 +122,15 @@ function rollFormula(expr, int, rng) {
     if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr)
     return evalArith(s)
   }
-  // Dice.roll handles final arithmetic after dice resolution; it
-  // doesn't do "/", so the only remaining / was substituted above.
+  // Anything with "/" left over must be pure arithmetic (all dice rolled,
+  // division consumed by the INT-n regex above or explicit "()") — but if
+  // a bare "/" remains in a dice string, that's a Dice-less division we
+  // handle with the mini evaluator, since we can't defer to Dice here.
   if (/\//.test(s)) {
     if (!/^[0-9+\-*/() \t]+$/.test(s)) throw new Error("bad spell expr: " + expr)
     return evalArith(s)
   }
-  return Dice.roll(s, rng)
+  return rollDiceExpr(s, rng)
 }
 
 // Classify a spell for cast-time behavior. Purely a read of Effect prose
