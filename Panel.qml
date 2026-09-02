@@ -1516,6 +1516,33 @@ Panel {
     bumpCombatLog()
   }
 
+  // Flee attempt (FLEE button): one full player action. Success ends the
+  // encounter in place (no move); failure gives the monster its normal
+  // retaliation swing (monsterTurn — Slip/Deceit/shields all apply).
+  // Chance = CombatLoop.fleeChance(DEX): 25% at 4 DEX, log2-shaped up.
+  function attemptFlee() {
+    if (!combat) return
+    if (combat.over) return
+    var p = CombatLoop.fleeChance(heroStats.dex || 0)
+    if (Math.random() < p) {
+      combat.log.push("You slip away from the " + combat.monster.name
+        + "! (" + Math.round(p * 100) + "%)")
+      // Hold the overlay one beat so the escape line is readable; the
+      // next monster-card click dismisses via combatAct's over-branch.
+      combat.over = true
+      combat.fled = true
+      bumpCombatLog()
+      saveRun()
+      return
+    }
+    combat.log.push("You try to flee — the " + combat.monster.name
+      + " cuts you off! (" + Math.round(p * 100) + "%)")
+    monsterTurn()
+    tickActiveSpells()
+    bumpCombatLog()
+    if (combat && combat.over && combat.won) resolveKill()
+  }
+
   // Put a dropped instance into the first empty pack slot. Returns true
   // if packed; if the pack is full the item is lost (the caller logs it).
   function giveLoot(drop) {
@@ -2688,6 +2715,37 @@ Panel {
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
               text: "INV"
+              color: Qt.darker(Color.menu.text, 1.8)
+              font.family: Style.font.menuFamily
+              font.pixelSize: 9
+            }
+          }
+
+          // Flee button — only live mid-fight; greyed out otherwise.
+          Column {
+            spacing: 2
+            Rectangle {
+              width: 44
+              height: 40
+              property bool armed: root.combat && !root.combat.over && !root.combat.won
+              color: "transparent"
+              border.color: armed ? Color.menu.border : Qt.darker(Color.menu.border, 1.8)
+              border.width: 2
+              Text {
+                anchors.centerIn: parent
+                text: "󰜍"  // md-run U+F070D
+                color: parent.armed ? Color.menu.text : Qt.darker(Color.menu.text, 2.0)
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 18
+              }
+              MouseArea {
+                anchors.fill: parent
+                onClicked: if (parent.armed) root.attemptFlee()
+              }
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: "FLEE"
               color: Qt.darker(Color.menu.text, 1.8)
               font.family: Style.font.menuFamily
               font.pixelSize: 9

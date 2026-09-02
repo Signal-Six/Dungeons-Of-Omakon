@@ -76,6 +76,15 @@ function playerStrike(loop, state, weaponLabel, rng) {
   return loop;
 }
 
+// Odds the player escapes an encounter. Formula (user pick 2026-09-02):
+//   P = 0.25 + 0.20 * log2(DEX/4)  —  25% at DEX 4, +20pp per doubling.
+function fleeChance(dex) {
+  var p = 0.25 + 0.20 * Math.log(dex / 4) / Math.LN2;
+  if (p < 0.05) p = 0.05;
+  if (p > 0.999) p = 0.999;
+  return p;
+}
+
 // Monster retaliation — call after playerStrike when !loop.over.
 function monsterStrike(loop, state, rng) {
   if (loop.over) return loop;
@@ -119,6 +128,7 @@ if (typeof module !== "undefined" && module.exports) {
     newEncounter: newEncounter,
     playerStrike: playerStrike,
     monsterStrike: monsterStrike,
-    round: round
+    round: round,
+    fleeChance: fleeChance
   };
 }
