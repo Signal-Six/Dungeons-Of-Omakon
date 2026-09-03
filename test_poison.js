@@ -46,7 +46,7 @@ var saved = JSON.parse(Save.serializeRun({
   poison: { dmg: 3, movesLeft: 4 },
   floorNum: 1, seed: 1, pos: null, explored: {}
 }));
-check("save version is 7", saved.version === 7);
+check("save version is 8", saved.version === 8);
 check("poison survives the JSON round-trip",
   saved.poison && saved.poison.dmg === 3 && saved.poison.movesLeft === 4);
 check("v7 parses", Save.parseRun(JSON.stringify(saved)) !== null);

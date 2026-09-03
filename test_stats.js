@@ -49,4 +49,14 @@ check("primaryStats passes str/dex/int/wil through",
 check("con not in primaryStats (offense/defense separated)",
   p.con === undefined)
 
+// D2 curves (2026-09-03): maxHP = 25 + 5L + floor(CON*L/2); maxMP = 10+INT+L.
+check("hpMax L1 fresh CON4 → 32", S.hpMax(S.freshStats(), 1) === 32)
+check("hpMax mpMax L1 → 15", S.mpMax(S.freshStats(), 1) === 15)
+check("hpMax L10 noCON → 95", S.hpMax({con:4}, 10) === 95)
+check("hpMax L10 fullCON (CON 9) → 120", S.hpMax({con:9}, 10) === 120)
+check("hpMax L50 noCON → 375", S.hpMax({con:4}, 50) === 375)
+check("hpMax L50 fullCON (CON 29) → 1000", S.hpMax({con:29}, 50) === 1000)
+check("hpMax floors odd CON*L products (CON5, L3 → 25+15+7=47)",
+  S.hpMax({con:5}, 3) === 47)
+
 process.exit(failures ? 1 : 0)
