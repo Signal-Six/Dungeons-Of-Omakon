@@ -58,5 +58,11 @@ check("hpMax L50 noCON → 375", S.hpMax({con:4}, 50) === 375)
 check("hpMax L50 fullCON (CON 29) → 1000", S.hpMax({con:29}, 50) === 1000)
 check("hpMax floors odd CON*L products (CON5, L3 → 25+15+7=47)",
   S.hpMax({con:5}, 3) === 47)
+check("mpMax L1 fresh INT4 → 17", S.mpMax(S.freshStats(), 1) === 17)
+check("mpMax L10 noINT → 80", S.mpMax({int:4}, 10) === 80)
+check("mpMax L10 fullINT (INT 9) → 105", S.mpMax({int:9}, 10) === 105)
+check("mpMax L50 fullINT (INT 29) → 985", S.mpMax({int:29}, 50) === 985)
+check("mpMax floors odd INT*L products (INT5, L3 → 10+15+7=32)",
+  S.mpMax({int:5}, 3) === 32)
 
 process.exit(failures ? 1 : 0)

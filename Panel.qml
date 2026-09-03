@@ -845,7 +845,7 @@ Panel {
     name = ("" + name).trim(); if (name === "") return
     runName = name
     runStarted = Qt.formatDate(new Date(), "yyyy-MM-dd")
-    heroHp = 32; heroHpMax = 32; heroMp = 15; heroMpMax = 15
+    heroHp = 32; heroHpMax = 32; heroMp = 17; heroMpMax = 17
     heroLevel = 1; heroXp = 0
     heroStats = Stats.freshStats()
     heroPoison = null

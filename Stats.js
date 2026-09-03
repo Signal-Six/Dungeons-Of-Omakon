@@ -70,7 +70,7 @@ function primaryStats(stats) {
 
 // Max HP/MP per the D2 curves (2026-09-03).
 //   maxHP = 25 + 5*level + floor(CON * level / 2)   (start: 4 CON, level 1 → 32)
-//   maxMP = 10 + INT + level                        (start: 4 INT, level 1 → 15 — unchanged)
+//   maxMP = 10 + 5*level + floor(INT * level / 2)   (start: 4 INT, level 1 → 17)
 // CON enters as a per-level term so full-CON builds pull meaningfully ahead of
 // untouched-CON (≈2-3x by late game) while the flat 5/level keeps pools tracking
 // monster damage with depth. All stat rounding floors, per user convention.
@@ -78,7 +78,7 @@ function hpMax(stats, level) {
   return 25 + 5 * level + Math.floor((stats.con || 0) * level / 2);
 }
 function mpMax(stats, level) {
-  return 10 + (stats.int || 0) + level;
+  return 10 + 5 * level + Math.floor((stats.int || 0) * level / 2);
 }
 function magicDefense(stats) {
   return (stats.wil || 0) * 2;
