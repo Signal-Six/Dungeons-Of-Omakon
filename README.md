@@ -1,40 +1,66 @@
 # Dungeons of Omakon
 
-A first-person, 16-bit dungeon crawler that lives in the Omarchy bar. Click
-the sword pill to open the game window, delve a randomly generated 6x7
-floor, fight monsters, loot, and descend. Permadeath; a rolling archive of
-your last 10 characters records their deepest floor and score.
+A first-person, 16-bit dungeon crawler that lives in your bar. Click the
+sword pill (or hit the hotkey) to open the game window, delve a randomly
+generated 6x7 floor, fight monsters, loot, and descend. Permadeath; a
+rolling archive of your last 10 characters records their deepest floor and
+score.
 
-## Status: Phase 1 — skeleton
+![First-person dungeon view](Screenshots/screenshot-2026-09-03_19-01-10.png)
 
-- Bar widget (`BarWidget.qml`): HP/MP ticker pill + IPC handlers
-- Game window (`Panel.qml`): exclusive-focus overlay, themed frame,
-  viewport placeholder, HP/MP header strip
-- No dungeon, combat, items, or persistence yet
+| | |
+| --- | --- |
+| ![Gameplay](Screenshots/screenshot-2026-09-03_19-01-33.png) | ![Gameplay](Screenshots/screenshot-2026-09-03_19-02-11.png) |
+| ![Gameplay](Screenshots/screenshot-2026-09-03_19-03-11.png) | ![Gameplay](Screenshots/screenshot-2026-09-03_19-03-27.png) |
+| ![Gameplay](Screenshots/screenshot-2026-09-03_19-03-46.png) | |
 
-## Install (dev)
+Dungeons of Omakon is an [Omarchy](https://omarchy.org) shell plugin — a
+Quickshell bar widget + exclusive-focus game window. All game logic
+(dungeon gen, combat, spells, drops, poison, enchanting) lives in pure,
+Node-testable JavaScript modules with a full test suite; the QML layer is
+rendering and input only.
+
+- Procedurally generated 6x7 perfect-maze floors, 50 levels deep
+- Turn-based combat: accuracy vs. defense, STR/DEX/CON/INT/WIL builds
+- 60 hand-authored monsters, 104 equipment rows, 20 spells
+- Enchanting, poison, fleeing, beacons, and a floor-50 Omatrix endgame
+- Persistent runs via the system keyring — pick up mid-run any time
+
+## Install
 
 ```sh
-ln -snf /home/haze/Projects/Dungeons-Of-Omakon ~/.config/omarchy/plugins/b.omakon
-omarchy-shell shell rescanPlugins
-omarchy plugin enable b.omakon
-omarchy validate b.omakon
+omarchy plugin add https://github.com/Signal-Six/Dungeons-Of-Omakon.git --enable
 ```
 
-Then click the Omakon pill in the bar (or `omarchy-shell shell toggle
-b.omakon`).
+This clones the plugin into `~/.config/omarchy/plugins/`, validates the
+manifest, and enables it. Click the † pill in the bar to play, or toggle
+it with:
 
-Unlink before packaging for real distribution (`omarchy plugin add <git
-url>` clones into the plugins dir).
+```sh
+omarchy-shell shell toggle b.omakon
+```
 
-## Roadmap
+To update to the latest version:
 
-- Phase 2: framed GUI — directional arrows, action buttons (attack/spell/
-  inventory), automap toggle, procedural pixel-art surfaces
-- Phase 3: `Dungeon.js` — seeded 6x7 maze gen (recursive backtracker), node
-  types, movement, viewport depth 2
-- Phase 4: persistence — `~/.local/share/omarchy/omakon/save.json` (or
-  stateful equivalent), last-10 archive, score = f(item rank, depth, level)
-- Phase 5: content JSON (`content/monsters.json`, `items.json`,
-  `spells.json`) + combat loop
-- Phase 6: audio, sprites, settings polish
+```sh
+omarchy plugin update
+```
+
+Requirements: `secret-tool` (libsecret) with an unlocked keyring for run
+persistence, and JetBrainsMono Nerd Font (Omarchy default) for the icon
+glyphs.
+
+## Development
+
+Dev-install by symlink instead of clone:
+
+```sh
+ln -snf "$PWD" ~/.config/omarchy/plugins/b.omakon
+omarchy-shell shell rescanPlugins
+omarchy plugin enable b.omakon
+omarchy plugin validate b.omakon
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
