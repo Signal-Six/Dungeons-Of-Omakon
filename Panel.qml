@@ -419,8 +419,13 @@ Panel {
     if (out.levelsGained > 0) {
       heroHp = heroHpMax
       heroMp = heroMpMax
-      lastLevelUpToast = "LEVEL UP → " + out.level + " (+" + out.levelsGained + ") — HP/MP restored"
-      popupMode = "alloc"
+      lastLevelUpToast = "LEVEL UP → " + out.level + " (+"
+        + out.levelsGained + ")\nHP/MP restored"
+      // Allocation points arrive on EVEN levels only (Stats.addXp counts
+      // floor(level/2) crossings). Show the alloc modal only when a point
+      // actually landed; odd-level gains get a plain notice instead of an
+      // alloc modal with zero spendable points.
+      popupMode = (out.stats.unspent > 0) ? "alloc" : "levelup"
     }
   }
   function assignStat(stat) {
@@ -3019,6 +3024,32 @@ Panel {
       }
     }
 
+    // ---- LEVELUP notice modal — odd levels: no point to assign, just inform ----
+    // Frame scope like ALLOC. Dismiss on click anywhere in the modal or
+    // Escape (generic popup-close fallthrough in Keys.onEscapePressed).
+    Rectangle {
+      visible: root.popupMode === "levelup" && root.mode === "game"
+      anchors.centerIn: parent
+      width: 240
+      height: 90
+      color: Color.menu.background
+      border.color: Color.menu.border
+      border.width: 2
+      z: 20
+      Column {
+        anchors.fill: parent; anchors.margins: 12; spacing: 6
+        Text {
+          text: root.lastLevelUpToast
+          font.bold: true; font.pixelSize: 12
+          font.family: Style.font.menuFamily; color: "#b09030"
+        }
+        Text { text: "Next stat point at the next even level."
+          font.pixelSize: 10
+          font.family: Style.font.menuFamily; color: Qt.darker(Color.menu.text, 1.5) }
+      }
+      MouseArea { anchors.fill: parent; onClicked: root.popupMode = "none" }
+    }
+
     // ---- ALLOC modal — level up: pick one stat to bump ----------------------
     // Placed at frame scope (next to the info modal) so anchors.centerIn
     // centers it in the 640x480 window; when this lived under the HUD strip
@@ -3037,7 +3068,7 @@ Panel {
         anchors.fill: parent; anchors.margins: 12; spacing: 6
 
         Text {
-          text: "LEVEL UP — " + root.lastLevelUpToast
+          text: root.lastLevelUpToast
           font.bold: true; font.pixelSize: 12
           font.family: Style.font.menuFamily; color: "#b09030"
         }
