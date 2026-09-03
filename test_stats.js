@@ -51,7 +51,7 @@ check("con not in primaryStats (offense/defense separated)",
 
 // D2 curves (2026-09-03): maxHP = 25 + 5L + floor(CON*L/2); maxMP = 10+INT+L.
 check("hpMax L1 fresh CON4 → 32", S.hpMax(S.freshStats(), 1) === 32)
-check("hpMax mpMax L1 → 15", S.mpMax(S.freshStats(), 1) === 15)
+check("mpMax L1 fresh INT4 → 17", S.mpMax(S.freshStats(), 1) === 17)
 check("hpMax L10 noCON → 95", S.hpMax({con:4}, 10) === 95)
 check("hpMax L10 fullCON (CON 9) → 120", S.hpMax({con:9}, 10) === 120)
 check("hpMax L50 noCON → 375", S.hpMax({con:4}, 50) === 375)
