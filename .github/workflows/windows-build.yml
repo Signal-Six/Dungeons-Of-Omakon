@@ -1,0 +1,63 @@
+name: windows-build
+
+# Builds the standalone Qt app for Windows on every push that touches game
+# sources, and on demand. Produces a zipped folder containing omakon.exe +
+# all Qt runtime DLLs/plugins, ready to unzip-and-run on any Windows 10+ box.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 6 (MSVC)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          arch: win64_msvc2022_64
+          modules: ''
+          cache: true
+
+      - name: Configure
+        working-directory: standalone
+        run: cmake -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: standalone
+        run: cmake --build build --config Release
+
+      - name: Deploy Qt runtime
+        working-directory: standalone
+        run: |
+          $exe = "build/Release/omakon.exe"
+          if (-not (Test-Path $exe)) { $exe = "build/omakon.exe" }
+          windeployqt --release --qmldir "$pwd" $exe
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $exe dist/
+          Get-ChildItem build/Release -Include *.dll -Recurse | ForEach-Object {
+            Copy-Item $_.FullName dist/
+          }
+          # windeployqt writes plugin folders next to the exe by default:
+          foreach ($d in @('platforms','qml','iconengines','imageformats','styles','tls')) {
+            $src = "build/Release/$d"
+            if (Test-Path $src) { Copy-Item $src dist/ -Recurse -Force }
+          }
+
+      - name: Package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omakon-windows-${{ github.sha }}
+          path: standalone/dist
+          retention-days: 30
+
+      - name: Tag a release (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+        run: |
+          Write-Host "Artifact 'omakon-windows-${{ github.sha }}' is ready."
+          Write-Host "To cut a release: gh release create vX.Y.Z <downloaded-zip>"
