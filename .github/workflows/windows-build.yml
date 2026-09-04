@@ -1,12 +1,14 @@
 name: windows-build
 
-# Builds the standalone Qt app for Windows on every push that touches game
-# sources, and on demand. Produces a zipped folder containing omakon.exe +
-# all Qt runtime DLLs/plugins, ready to unzip-and-run on any Windows 10+ box.
+# Builds the standalone Qt app for Windows on every push to master, on
+# demand, and publishes a downloadable release zip whenever a v* tag is
+# pushed. The zip contains omakon.exe + all Qt runtime DLLs/plugins,
+# ready to unzip-and-run on any Windows 10+ machine.
 
 on:
   push:
     branches: [master]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -21,12 +23,11 @@ jobs:
         with:
           version: '6.8.*'
           arch: win64_msvc2022_64
-          modules: ''
           cache: true
 
       - name: Configure
         working-directory: standalone
-        run: cmake -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         working-directory: standalone
@@ -35,29 +36,29 @@ jobs:
       - name: Deploy Qt runtime
         working-directory: standalone
         run: |
-          $exe = "build/Release/omakon.exe"
-          if (-not (Test-Path $exe)) { $exe = "build/omakon.exe" }
-          windeployqt --release --qmldir "$pwd" $exe
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item $exe dist/
-          Get-ChildItem build/Release -Include *.dll -Recurse | ForEach-Object {
-            Copy-Item $_.FullName dist/
-          }
-          # windeployqt writes plugin folders next to the exe by default:
-          foreach ($d in @('platforms','qml','iconengines','imageformats','styles','tls')) {
-            $src = "build/Release/$d"
-            if (Test-Path $src) { Copy-Item $src dist/ -Recurse -Force }
-          }
+          # windeployqt stages ALL required DLLs/plugins next to the exe —
+          # that folder IS the redistributable. Copy it wholesale as dist/.
+          windeployqt --release --qmldir . build/omakon.exe
+          Copy-Item build dist -Recurse -Exclude '*.obj','*.cpp','CMakeFiles','.qt','.ninja*'
 
-      - name: Package artifact
+      - name: Package zip
+        working-directory: standalone
+        run: |
+          $shaver = "${{ github.sha }}".Substring(0,7)
+          Compress-Archive dist/* "omakon-windows-$shaver.zip"
+
+      - name: Upload CI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: omakon-windows-${{ github.sha }}
-          path: standalone/dist
+          name: omakon-windows
+          path: standalone/omakon-windows-*.zip
           retention-days: 30
 
-      - name: Tag a release (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
-        run: |
-          Write-Host "Artifact 'omakon-windows-${{ github.sha }}' is ready."
-          Write-Host "To cut a release: gh release create vX.Y.Z <downloaded-zip>"
+      # Tag pushes publish a public release so players don't need a GitHub
+      # login (Actions artifacts require auth to download).
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: standalone/omakon-windows-*.zip
+          generate_release_notes: true

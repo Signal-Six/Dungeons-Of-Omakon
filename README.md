@@ -50,6 +50,25 @@ Requirements: `secret-tool` (libsecret) with an unlocked keyring for run
 persistence, and JetBrainsMono Nerd Font (Omarchy default) for the icon
 glyphs.
 
+## Windows (standalone app)
+
+No Omarchy needed — the game also ships as a plain desktop app for Windows.
+Grab the latest `omakon-windows-*.zip` from the
+[Releases](https://github.com/Signal-Six/Dungeons-Of-Omakon/releases) page,
+extract it, and run `omakon.exe`. No install; the folder is self-contained
+(Qt runtime bundled). Delete the folder to uninstall.
+
+Saves live at `%APPDATA%\SignalSix\omakon\run.json` — runs persist between
+sessions just like the plugin version.
+
+**Important:** the game's monster/item icons are glyphs from
+JetBrainsMono Nerd Font. If icons show as empty boxes, install it from
+<https://www.nerdfonts.com/font-downloads> (JetBrainsMono Nerd Font) and
+restart the app.
+
+Controls: click the on-screen arrows, or use Arrow keys / WASD
+(Up/W forward, Down/S back, Left/A and Right/D turn).
+
 ## Development
 
 Dev-install by symlink instead of clone:
