@@ -15,6 +15,13 @@ jobs:
   windows:
     runs-on: windows-latest
 
+    # The default GITHUB_TOKEN is read-only, which blocks the
+    # action-gh-release step on tag pushes (403 "Resource not accessible
+    # by integration"). The tag step only needs to create releases.
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - uses: actions/checkout@v4
 
