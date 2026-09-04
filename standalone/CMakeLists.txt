@@ -34,6 +34,13 @@ set(GAME_SOURCES
     Dice.js CombatLoop.js Poison.js Spells.js Enchant.js
 )
 set(GAME_DATA monsters.json equipment.json spells.json)
+# Icon glyphs are PUA characters from JetBrainsMono Nerd Font — bundle the
+# TTFs into the binary so the app renders correctly on machines without the
+# font installed (e.g. fresh Windows).
+set(APP_FONTS
+    fonts/JetBrainsMonoNerdFont-Regular.ttf
+    fonts/JetBrainsMonoNerdFont-Bold.ttf
+)
 
 foreach(f ${GAME_SOURCES})
     if(EXISTS "${PARENT_DIR}/${f}")
@@ -63,6 +70,11 @@ foreach(f ${GAME_DATA})
     set_source_files_properties(${STAGED_DIR}/data/${f}
         PROPERTIES QT_RESOURCE_ALIAS "data/${f}")
 endforeach()
+foreach(f ${APP_FONTS})
+    # f already includes the fonts/ subdir, so the alias is f verbatim.
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/${f}
+        PROPERTIES QT_RESOURCE_ALIAS "${f}")
+endforeach()
 
 qt_add_qml_module(omakon
     URI Omakon
@@ -85,6 +97,8 @@ qt_add_qml_module(omakon
         ${STAGED_DIR}/data/monsters.json
         ${STAGED_DIR}/data/equipment.json
         ${STAGED_DIR}/data/spells.json
+        ${CMAKE_CURRENT_SOURCE_DIR}/fonts/JetBrainsMonoNerdFont-Regular.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/fonts/JetBrainsMonoNerdFont-Bold.ttf
 )
 
 target_link_libraries(omakon PRIVATE

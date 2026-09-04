@@ -61,10 +61,8 @@ extract it, and run `omakon.exe`. No install; the folder is self-contained
 Saves live at `%APPDATA%\SignalSix\omakon\run.json` — runs persist between
 sessions just like the plugin version.
 
-**Important:** the game's monster/item icons are glyphs from
-JetBrainsMono Nerd Font. If icons show as empty boxes, install it from
-<https://www.nerdfonts.com/font-downloads> (JetBrainsMono Nerd Font) and
-restart the app.
+The Nerd Font the icons use is bundled inside `omakon.exe`, so no extra
+install is needed — icons render identically on a fresh machine.
 
 Controls: click the on-screen arrows, or use Arrow keys / WASD
 (Up/W forward, Down/S back, Left/A and Right/D turn).

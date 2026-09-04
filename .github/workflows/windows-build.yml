@@ -25,9 +25,15 @@ jobs:
           arch: win64_msvc2022_64
           cache: true
 
+      # CMake was picking up the runner's preinstalled MinGW gcc, which is
+      # ABI-incompatible with the MSVC Qt build above. Enter the MSVC dev
+      # shell so cl.exe wins compiler detection.
+      - name: Set up MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Configure
         working-directory: standalone
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
 
       - name: Build
         working-directory: standalone
