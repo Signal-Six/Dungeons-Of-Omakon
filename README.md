@@ -50,6 +50,15 @@ Requirements: `secret-tool` (libsecret) with an unlocked keyring for run
 persistence, and JetBrainsMono Nerd Font (Omarchy default) for the icon
 glyphs.
 
+## Remove
+
+```sh
+omarchy plugin remove b.omakon
+```
+
+Removes the plugin and its bar pill. Run saves live in the system keyring
+and are unaffected by removal.
+
 ## Windows (standalone app)
 
 No Omarchy needed — the game also ships as a plain desktop app for Windows.
