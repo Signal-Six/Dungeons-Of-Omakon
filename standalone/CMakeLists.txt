@@ -30,7 +30,7 @@ set(STAGED_DIR "${CMAKE_CURRENT_BINARY_DIR}/game")
 file(MAKE_DIRECTORY "${STAGED_DIR}/data")
 
 set(GAME_SOURCES
-    Panel.qml Dungeon.js Save.js Combat.js Stats.js Monsters.js Drops.js
+    GameScene.qml Dungeon.js Save.js Combat.js Stats.js Monsters.js Drops.js
     Dice.js CombatLoop.js Poison.js Spells.js Enchant.js
 )
 set(GAME_DATA monsters.json equipment.json spells.json)
@@ -59,8 +59,8 @@ endforeach()
 
 # QT_RESOURCE_ALIAS must be set on the file BEFORE qt_add_qml_module —
 # the macro snapshots the properties at add time.
-set_source_files_properties(${STAGED_DIR}/Panel.qml
-    PROPERTIES QT_RESOURCE_ALIAS "Panel.qml")
+set_source_files_properties(${STAGED_DIR}/GameScene.qml
+    PROPERTIES QT_RESOURCE_ALIAS "GameScene.qml")
 foreach(f Dungeon.js Save.js Combat.js Stats.js Monsters.js Drops.js
           Dice.js CombatLoop.js Poison.js Spells.js Enchant.js)
     set_source_files_properties(${STAGED_DIR}/${f}
@@ -81,7 +81,7 @@ qt_add_qml_module(omakon
     VERSION 1.0
     QML_FILES
         main.qml
-        ${STAGED_DIR}/Panel.qml
+        ${STAGED_DIR}/GameScene.qml
     RESOURCES
         ${STAGED_DIR}/Dungeon.js
         ${STAGED_DIR}/Save.js
