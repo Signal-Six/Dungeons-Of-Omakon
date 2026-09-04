@@ -14,10 +14,53 @@ qt_add_executable(omakon
     filestorage.h
 )
 
-# Bundle the data tables under a "data/" prefix and point a qml-module
-# resource entry at it BEFORE qt_add_qml_module so the aliases apply.
-foreach(f monsters.json equipment.json spells.json)
-    set_source_files_properties(${f}
+# ---------------------------------------------------------------------------
+# The game is developed at ../ (the Omarchy plugin repo root). We stage the
+# shared sources into the build dir so:
+#   (a) qt_add_qml_module sees a single-directory layout,
+#   (b) relative imports in the QML/JS resolve unchanged,
+#   (c) data JSONs get a clean qrc prefix.
+# Edits to ../Panel.qml, ../Dungeon.js etc. take effect on the next
+# `cmake --build` (configure_file reruns at configure time; ninja will
+# reconfigure the build automatically when CMakeLists.txt changes — for
+# pure-content edits, just rerun `cmake --build`).
+# ---------------------------------------------------------------------------
+set(PARENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
+set(STAGED_DIR "${CMAKE_CURRENT_BINARY_DIR}/game")
+file(MAKE_DIRECTORY "${STAGED_DIR}/data")
+
+set(GAME_SOURCES
+    Panel.qml Dungeon.js Save.js Combat.js Stats.js Monsters.js Drops.js
+    Dice.js CombatLoop.js Poison.js Spells.js Enchant.js
+)
+set(GAME_DATA monsters.json equipment.json spells.json)
+
+foreach(f ${GAME_SOURCES})
+    if(EXISTS "${PARENT_DIR}/${f}")
+        configure_file("${PARENT_DIR}/${f}" "${STAGED_DIR}/${f}" COPYONLY)
+    else()
+        message(FATAL_ERROR "Missing game source: ${PARENT_DIR}/${f}")
+    endif()
+endforeach()
+foreach(f ${GAME_DATA})
+    if(EXISTS "${PARENT_DIR}/${f}")
+        configure_file("${PARENT_DIR}/${f}" "${STAGED_DIR}/data/${f}" COPYONLY)
+    else()
+        message(FATAL_ERROR "Missing game data: ${PARENT_DIR}/${f}")
+    endif()
+endforeach()
+
+# QT_RESOURCE_ALIAS must be set on the file BEFORE qt_add_qml_module —
+# the macro snapshots the properties at add time.
+set_source_files_properties(${STAGED_DIR}/Panel.qml
+    PROPERTIES QT_RESOURCE_ALIAS "Panel.qml")
+foreach(f Dungeon.js Save.js Combat.js Stats.js Monsters.js Drops.js
+          Dice.js CombatLoop.js Poison.js Spells.js Enchant.js)
+    set_source_files_properties(${STAGED_DIR}/${f}
+        PROPERTIES QT_RESOURCE_ALIAS "${f}")
+endforeach()
+foreach(f ${GAME_DATA})
+    set_source_files_properties(${STAGED_DIR}/data/${f}
         PROPERTIES QT_RESOURCE_ALIAS "data/${f}")
 endforeach()
 
@@ -26,22 +69,22 @@ qt_add_qml_module(omakon
     VERSION 1.0
     QML_FILES
         main.qml
-        Panel.qml
+        ${STAGED_DIR}/Panel.qml
     RESOURCES
-        Dungeon.js
-        Save.js
-        Combat.js
-        Stats.js
-        Monsters.js
-        Drops.js
-        Dice.js
-        CombatLoop.js
-        Poison.js
-        Spells.js
-        Enchant.js
-        monsters.json
-        equipment.json
-        spells.json
+        ${STAGED_DIR}/Dungeon.js
+        ${STAGED_DIR}/Save.js
+        ${STAGED_DIR}/Combat.js
+        ${STAGED_DIR}/Stats.js
+        ${STAGED_DIR}/Monsters.js
+        ${STAGED_DIR}/Drops.js
+        ${STAGED_DIR}/Dice.js
+        ${STAGED_DIR}/CombatLoop.js
+        ${STAGED_DIR}/Poison.js
+        ${STAGED_DIR}/Spells.js
+        ${STAGED_DIR}/Enchant.js
+        ${STAGED_DIR}/data/monsters.json
+        ${STAGED_DIR}/data/equipment.json
+        ${STAGED_DIR}/data/spells.json
 )
 
 target_link_libraries(omakon PRIVATE

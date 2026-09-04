@@ -64,7 +64,11 @@ void FileStorage::clearRun()
 
 QString FileStorage::readResource(const QString &path) const
 {
-    QFile f(path);
+    // Accept both ":/foo/bar" and "qrc:/foo/bar" — QML hands us the latter.
+    QString p = path.startsWith(QStringLiteral("qrc:/"))
+        ? path.mid(3)   // -> ":/foo/bar"
+        : path;
+    QFile f(p);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
         return QString();
     return QString::fromUtf8(f.readAll());

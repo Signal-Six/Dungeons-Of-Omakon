@@ -7,7 +7,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QFile>
 #include <QDebug>
 
 #include "filestorage.h"
@@ -30,8 +29,6 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
     engine.rootContext()->setContextProperty(QStringLiteral("storage"), &storage);
     // Quick sanity check on the packaged data: confirm qrc paths resolve.
-    qInfo() << "monsters.json exists (qrc:/)?" << QFile::exists(":/qt/qml/Omakon/data/monsters.json")
-            << "; also as (qrc no prefix)?" << QFile::exists(":/data/monsters.json");
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/Omakon/main.qml")));
 
     if (engine.rootObjects().isEmpty()) {
