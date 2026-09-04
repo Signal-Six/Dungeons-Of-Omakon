@@ -844,10 +844,15 @@ Item {
   // Explored mask for the automap, keyed "r,c".
   property var explored: ({})
   Component.onCompleted: {
-    // Data tables, then explore the start tile.
-    loadMonsters(storage.readResource("qrc:/qt/qml/Omakon/data/monsters.json"))
-    loadEquipment(storage.readResource("qrc:/qt/qml/Omakon/data/equipment.json"))
-    loadSpells(storage.readResource("qrc:/qt/qml/Omakon/data/spells.json"))
+    console.log("omakon standalone boot; storage=" + (storage ? "OK" : "MISSING")
+                + "; CWD=" + Qt.application.arguments[0])
+    try {
+      var mj = storage.readResource(":/qt/qml/Omakon/data/monsters.json")
+      console.log("omakon monsters.json size=" + mj.length)
+      loadMonsters(mj)
+      loadEquipment(storage.readResource(":/qt/qml/Omakon/data/equipment.json"))
+      loadSpells(storage.readResource(":/qt/qml/Omakon/data/spells.json"))
+    } catch (e) { console.log("omakon data load failed: " + e) }
     markExplored(pos.row, pos.col)
   }
 

@@ -1,2 +1,5 @@
-# Local dev-only test harness (not part of the distributed plugin)
+# Build artifacts
+standalone/build*/
+
+# Local test harness (dev-only, kept out of distribution)
 test_*.js

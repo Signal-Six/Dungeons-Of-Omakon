@@ -1,0 +1,1056 @@
+[
+  {
+    "Name": "Rusty Sword",
+    "Accuracy": 1,
+    "Damage": 1,
+    "Defense": null,
+    "Description": "Little more than a fragile stick of rusted metal. Where did you find this and why did you bring it into a dungeon?",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Short Sword",
+    "Accuracy": 1,
+    "Damage": 2,
+    "Defense": null,
+    "Description": "A rogue’s short sword, about 3 feet long. Suitable for defense when nothing else is available.",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Long Sword",
+    "Accuracy": 2,
+    "Damage": 2,
+    "Defense": null,
+    "Description": "A typical knight’s sword. No duller than any other blade but the length provides for extra reach.",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Spear",
+    "Accuracy": 3,
+    "Damage": 1,
+    "Defense": null,
+    "Description": "A simple, almost primitive, spear topped with an iron sheaf. Surprisingly accurate but does little damage.",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󱡅 md_spear"
+  },
+  {
+    "Name": "Crossbow",
+    "Accuracy": 3,
+    "Damage": 4,
+    "Defense": null,
+    "Description": "A complex, wooden crossbow with a winch mechanism. Fires bolts with tremendous force.",
+    "Type": "Weapon",
+    "Rank": 3,
+    "Icon": "󰆣 md_crosshairs"
+  },
+  {
+    "Name": "Long Bow",
+    "Accuracy": 4,
+    "Damage": 3,
+    "Defense": null,
+    "Description": "A traditional wooden bow favored by the Elves. Tremendously accurate but limited by human strength.",
+    "Type": "Weapon",
+    "Rank": 2,
+    "Icon": "󱡁 md_bow_arrow"
+  },
+  {
+    "Name": "Scimitar",
+    "Accuracy": 3,
+    "Damage": 5,
+    "Defense": null,
+    "Description": "A curved blade from a foreign land. Hard to use but good at opening wounds.",
+    "Type": "Weapon",
+    "Rank": 3,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Katana",
+    "Accuracy": 3,
+    "Damage": 6,
+    "Defense": null,
+    "Description": "A rare weapon forged in Eastern lands. Light and wieldy, able to slice with ease.",
+    "Type": "Weapon",
+    "Rank": 4,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Morningstar",
+    "Accuracy": 4,
+    "Damage": 4,
+    "Defense": null,
+    "Description": "A metal, spiked cudgel employed by certain priestly sects. Robust and easy to use.",
+    "Type": "Weapon",
+    "Rank": 2,
+    "Icon": "󱡃 md_mace"
+  },
+  {
+    "Name": "Warhammer",
+    "Accuracy": 2,
+    "Damage": 5,
+    "Defense": null,
+    "Description": "A weighty iron hammer on a long haft. Slow and unforgiving but able to deal powerful blows.",
+    "Type": "Weapon",
+    "Rank": 2,
+    "Icon": "󰣪 md_hammer"
+  },
+  {
+    "Name": "Glaive",
+    "Accuracy": 5,
+    "Damage": 4,
+    "Defense": null,
+    "Description": "A large, curved blade affixed to a spear-length shaft. Surprisingly devastating in the right hands.",
+    "Type": "Weapon",
+    "Rank": 3,
+    "Icon": "󱡅 md_spear"
+  },
+  {
+    "Name": "Trident",
+    "Accuracy": 4,
+    "Damage": 5,
+    "Defense": null,
+    "Description": "Once a tool for fishing, it has been militarized to impressive effect. Favored by mysterious clans of the Central Sea.",
+    "Type": "Weapon",
+    "Rank": 5,
+    "Icon": "󱡅 md_spear"
+  },
+  {
+    "Name": "Odachi",
+    "Accuracy": 3,
+    "Damage": 7,
+    "Defense": null,
+    "Description": "A huge katana made for slicing the legs off cavalry horses. Extremely slow but devastating.",
+    "Type": "Weapon",
+    "Rank": 6,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Rapier",
+    "Accuracy": 6,
+    "Damage": 2,
+    "Defense": null,
+    "Description": "A light, quick, pointed weapon intended for fencing. Highly accurate but can only deal slight damage.",
+    "Type": "Weapon",
+    "Rank": 2,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Reiterschwerter",
+    "Accuracy": 2,
+    "Damage": 3,
+    "Defense": 1,
+    "Description": "A cavalry saber with a basket hilt. Similar to a long sword although the hilt grants slight defense.",
+    "Type": "Weapon",
+    "Rank": 3,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Lance",
+    "Accuracy": 3,
+    "Damage": 3,
+    "Defense": null,
+    "Description": "A large, heavy spear meant for thrusting on horseback. Moderately effective on foot.",
+    "Type": "Weapon",
+    "Rank": 3,
+    "Icon": "󱡅 md_spear"
+  },
+  {
+    "Name": "Whip",
+    "Accuracy": 6,
+    "Damage": 1,
+    "Defense": null,
+    "Description": "A long, flexible strap meant for taming beasts. Incredibly fast but can only produce superficial wounds.",
+    "Type": "Weapon",
+    "Rank": 2,
+    "Icon": "󰌹 md_link_variant"
+  },
+  {
+    "Name": "Barbed Wire",
+    "Accuracy": 1,
+    "Damage": 1,
+    "Defense": null,
+    "Description": "Only a maniac would wrap barbed wire around one’s fists. What do you intend to do with this?",
+    "Type": "Weapon",
+    "Rank": 4,
+    "Icon": "󱞚 md_fence"
+  },
+  {
+    "Name": "Meteor Hammer",
+    "Accuracy": 3,
+    "Damage": 5,
+    "Defense": null,
+    "Description": "An exotic weapon consisting of heavy metal weights connected via a chain. Awkward to use but can catch opponents off-guard.",
+    "Type": "Weapon",
+    "Rank": 7,
+    "Icon": "󰖡 md_weight"
+  },
+  {
+    "Name": "Axe",
+    "Accuracy": 2,
+    "Damage": 6,
+    "Defense": null,
+    "Description": "A militarized chopping axe, heavy and slow. A favorite among lesser races who value power above all else.",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󱡂 md_axe_battle"
+  },
+  {
+    "Name": "Club",
+    "Accuracy": 4,
+    "Damage": 2,
+    "Defense": null,
+    "Description": "Nothing more than a weighty piece of debris. Surprisingly effective at bludgeoning.",
+    "Type": "Weapon",
+    "Rank": 1,
+    "Icon": "󰡓 md_baseball_bat"
+  },
+  {
+    "Name": "Bo Staff",
+    "Accuracy": 3,
+    "Damage": 3,
+    "Defense": 2,
+    "Description": "A martial staff wielded by Eastern men. Meant for parrying attacks as much as delivering them, thus adding to one’s defense.",
+    "Type": "Weapon",
+    "Rank": 5,
+    "Icon": "󱡄 md_magic_staff"
+  },
+  {
+    "Name": "Tonfa",
+    "Accuracy": 2,
+    "Damage": 3,
+    "Defense": 1,
+    "Description": "A club-like weapon held with a reverse grip. Better than using one’s fists alone. Also meant for parrying attacks, thus adding to one’s defense.",
+    "Type": "Weapon",
+    "Rank": 4,
+    "Icon": "󰡓 md_baseball_bat"
+  },
+  {
+    "Name": "War Banner",
+    "Accuracy": 3,
+    "Damage": 2,
+    "Defense": 2,
+    "Description": "A rare find: a spear with a martial banner attached. The banner flutters as it is waved, providing a defensive distraction.",
+    "Type": "Weapon",
+    "Rank": 8,
+    "Icon": "󰈻 md_flag"
+  },
+  {
+    "Name": "Pistol",
+    "Accuracy": 1,
+    "Damage": 7,
+    "Defense": null,
+    "Description": "A matchlock pistol of simple design. Fires ball rounds. Highly inaccurate but when it does connect it can easily cripple an opponent.",
+    "Type": "Weapon",
+    "Rank": 8,
+    "Icon": "󰜃 md_pistol"
+  },
+  {
+    "Name": "Rifle",
+    "Accuracy": 3,
+    "Damage": 10,
+    "Defense": null,
+    "Description": "A matchlock rifle with a long barrel. Fires ball rounds. Slightly more accurate than a pistol, thanks to its length, and much more damaging. A single shot can fell weaker creatures.",
+    "Type": "Weapon",
+    "Rank": 9,
+    "Icon": "󰜃 md_pistol"
+  },
+  {
+    "Name": "Siege Cannon",
+    "Accuracy": 2,
+    "Damage": 20,
+    "Defense": null,
+    "Description": "A colossal iron cannon capable of firing heavy ammunition. Absurdly weighty and slow. Only a madman would think about firing this.",
+    "Type": "Weapon",
+    "Rank": 9,
+    "Icon": "󰚑 md_bomb"
+  },
+  {
+    "Name": "Urumi",
+    "Accuracy": 2,
+    "Damage": 9,
+    "Defense": null,
+    "Description": "Essentially, a flexible metal whip. Dangerous to the user and rather unwieldly, it nevertheless can sever limbs thanks to its thin steel blade.",
+    "Type": "Weapon",
+    "Rank": 7,
+    "Icon": "󰓥 md_sword"
+  },
+  {
+    "Name": "Autocross",
+    "Accuracy": 5,
+    "Damage": 7,
+    "Defense": null,
+    "Description": "An ancient weapon of a bygone era. Its boxy construction resembles a cross and it is held with a reverse grip. Emits harnessed light.",
+    "Type": "Weapon",
+    "Rank": 8,
+    "Icon": "󰆤 md_crosshairs_gps"
+  },
+  {
+    "Name": "Mage’s Staff",
+    "Accuracy": 10,
+    "Damage": 3,
+    "Defense": null,
+    "Description": "A magical staff enchanted to fire balls of energy. Highly accurate but strong creatures can shrug off the blasts.",
+    "Type": "Weapon",
+    "Rank": 5,
+    "Icon": "󱡄 md_magic_staff"
+  },
+  {
+    "Name": "Battlemage Staff",
+    "Accuracy": 10,
+    "Damage": 6,
+    "Defense": null,
+    "Description": "A powerful staff enchanted with war magic. Fires bolts of mana.",
+    "Type": "Weapon",
+    "Rank": 7,
+    "Icon": "󱡄 md_magic_staff"
+  },
+  {
+    "Name": "Kunai",
+    "Accuracy": 5,
+    "Damage": 2,
+    "Defense": null,
+    "Description": "Trowel-shaped daggers that can be thrown with high accuracy. Favored by Eastern assassins.",
+    "Type": "Weapon",
+    "Rank": 5,
+    "Icon": "󰧻 md_knife"
+  },
+  {
+    "Name": "Lensman Armillary",
+    "Accuracy": 10,
+    "Damage": 10,
+    "Defense": null,
+    "Description": "A floating metal orb controlled by a wrist brace, which syncronizes with the user’s thoughts. Fires beams of light.",
+    "Type": "Weapon",
+    "Rank": 10,
+    "Icon": "󰀘 md_orbit"
+  },
+  {
+    "Name": "Power Glove",
+    "Accuracy": 5,
+    "Damage": 6,
+    "Defense": null,
+    "Description": "A magical, metal glove of ancient construction. Enchanted with battle magic, it allows the user to strike swift, damaging blows.",
+    "Type": "Weapon",
+    "Rank": 8,
+    "Icon": "󰭥 md_boxing_glove"
+  },
+  {
+    "Name": "Archaic Carbine",
+    "Accuracy": 10,
+    "Damage": 10,
+    "Defense": null,
+    "Description": "A rifle-like device of ancient construction. Fires piercing beams of energy.",
+    "Type": "Weapon",
+    "Rank": 9,
+    "Icon": "󰜃 md_pistol"
+  },
+  {
+    "Name": "Mana Manifold",
+    "Accuracy": 10,
+    "Damage": 12,
+    "Defense": null,
+    "Description": "Magical, floating cubes that encircle the user’s hand. Harnesses occult power to project a devastating beam of magical force.",
+    "Type": "Weapon",
+    "Rank": 10,
+    "Icon": "󰝮 md_dice_multiple"
+  },
+  {
+    "Name": "Chakram",
+    "Accuracy": 10,
+    "Damage": 7,
+    "Defense": null,
+    "Description": "A magical ring of psionic energy, telepathically controlled. Can be flung at opponents to deadly effect.",
+    "Type": "Weapon",
+    "Rank": 10,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Book of Power",
+    "Accuracy": "infinite",
+    "Damage": 10,
+    "Defense": null,
+    "Description": "A magical grimoire, enchanted to damage enemies purely by recitation. Thus, it cannot be dodged.",
+    "Type": "Weapon",
+    "Rank": 10,
+    "Icon": "󰂺 md_book"
+  },
+  {
+    "Name": "Sapien Cannon",
+    "Accuracy": 1,
+    "Damage": "infinite",
+    "Defense": null,
+    "Description": "A large, shoulder mounted siege weapon. Highly inaccurate but capable of killing any living creature should they find themselves struck by its beam.",
+    "Type": "Weapon",
+    "Rank": 10,
+    "Icon": "󰑣 md_rocket"
+  },
+  {
+    "Name": "Buckler",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 1,
+    "Description": "A small metal disk affixed to the forearm. Primarily meant to parry small arms, its defense is negligible.",
+    "Type": "Shield",
+    "Rank": 1,
+    "Icon": "󰒘 md_shield"
+  },
+  {
+    "Name": "Kite Shield",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 10,
+    "Description": "A standard knight’s shield. Provides decent coverage of the limbs and torse for solid defense.",
+    "Type": "Shield",
+    "Rank": 1,
+    "Icon": "󰒘 md_shield"
+  },
+  {
+    "Name": "Tower Shield",
+    "Accuracy": -2,
+    "Damage": null,
+    "Defense": 20,
+    "Description": "A huge steel shield nearly the length of a man. Provides superb defense but impairs one’s accuracy.",
+    "Type": "Shield",
+    "Rank": 3,
+    "Icon": "󰒘 md_shield"
+  },
+  {
+    "Name": "Monument Shield",
+    "Accuracy": -6,
+    "Damage": null,
+    "Defense": 40,
+    "Description": "A colossal stone shield graven with a Dwarven visage. Favored by the Dwarves but largely ceremonial as its weight is extremely cumbersome.",
+    "Type": "Shield",
+    "Rank": 6,
+    "Icon": "󰟾 md_wall"
+  },
+  {
+    "Name": "Woven Shield",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 5,
+    "Description": "A wicker shield favored by men of the East. Light and sturdy. Able to impart considerable defense although its weak material construction undermines its efficacy.",
+    "Type": "Shield",
+    "Rank": 4,
+    "Icon": "󰒘 md_shield"
+  },
+  {
+    "Name": "Orrery Shield",
+    "Accuracy": -1,
+    "Damage": null,
+    "Defense": 17,
+    "Description": "Enchanted orbs encircle the user’s arm and move to intercept incoming strikes. Highly effective although coordinating one’s movements to theirs is sometimes difficult.",
+    "Type": "Shield",
+    "Rank": 8,
+    "Icon": "󰀘 md_orbit"
+  },
+  {
+    "Name": "Phase Shield",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 30,
+    "Description": "An ancient shield of a bygone era. Normally the size of a buckler. When activated, a green barrier of energy emerges that negates attacks.",
+    "Type": "Shield",
+    "Rank": 9,
+    "Icon": "󱠨 md_shield_moon"
+  },
+  {
+    "Name": "Hyper Shield",
+    "Accuracy": -10,
+    "Damage": null,
+    "Defense": 50,
+    "Description": "A purely defensive device, affixed to the user’s arm. It generates a force field around the bearer but such coverage greatly impedes attacks. Used by the ancient men who walk the stars.",
+    "Type": "Shield",
+    "Rank": 10,
+    "Icon": "󱄻 md_shield_star"
+  },
+  {
+    "Name": "Turtle Shell",
+    "Accuracy": -5,
+    "Damage": null,
+    "Defense": 30,
+    "Description": "The shell of some large animal, remade into a shield. Due to its curvature, it impedes attacks although the hide is quite durable.",
+    "Type": "Shield",
+    "Rank": 9,
+    "Icon": "󰳗 md_turtle"
+  },
+  {
+    "Name": "Spiked Shield",
+    "Accuracy": -1,
+    "Damage": 3,
+    "Defense": 5,
+    "Description": "A spiked, weaponized shield used by gladiators. Contributes to the user’s offense although it is meant for bloodsport and thus provides little coverage.",
+    "Type": "Shield",
+    "Rank": 4,
+    "Icon": "󱢾 md_shield_sword"
+  },
+  {
+    "Name": "Rations",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Simple trail rations. Restores 5 HP.",
+    "Type": "Item",
+    "Rank": 1,
+    "Icon": "󰉚 md_food"
+  },
+  {
+    "Name": "Potion",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An enchanted healing draught. Restores 10 HP.",
+    "Type": "Item",
+    "Rank": 1,
+    "Icon": "󰂓 md_flask"
+  },
+  {
+    "Name": "High Potion",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An effective healing draught. Restores 20 HP.",
+    "Type": "Item",
+    "Rank": 2,
+    "Icon": "󱄮 md_bottle_tonic"
+  },
+  {
+    "Name": "Ex Potion",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An extremely effective draught. Restores 50 HP.",
+    "Type": "Item",
+    "Rank": 4,
+    "Icon": "󱉋 md_flask_round_bottom"
+  },
+  {
+    "Name": "Antidote",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An alchemical concoction that cures poison.",
+    "Type": "Item",
+    "Rank": 2,
+    "Icon": "󱄲 md_bottle_tonic_skull"
+  },
+  {
+    "Name": "Mana Essence",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Ambient magical energy condensed into a sphere. Restores 10 MP.",
+    "Type": "Item",
+    "Rank": 1,
+    "Icon": "󰂓 md_flask"
+  },
+  {
+    "Name": "Mana Flux",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Ambient magical energy condensed into fine wires. Restores 30 MP.",
+    "Type": "Item",
+    "Rank": 3,
+    "Icon": "󰬯 md_crystal_ball"
+  },
+  {
+    "Name": "Mana Crystal",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Highly condensed magical energy. Restores 100 MP.",
+    "Type": "Item",
+    "Rank": 5,
+    "Icon": "󰇈 md_diamond_stone"
+  },
+  {
+    "Name": "Scroll of Enchantment",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A magical scroll, common among Dwarven scholars. Adds +1 enchantment to the selected weapon or shield.",
+    "Type": "Item",
+    "Rank": 6,
+    "Effect": {
+      "type": "enchant",
+      "targets": [
+        "Weapon",
+        "Shield",
+        "Helmet",
+        "Armor"
+      ],
+      "amount": 1
+    },
+    "Icon": " fa_scroll"
+  },
+  {
+    "Name": "Voodoo Doll",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Necromantic doll attuned to the user’s life force. If the user would be killed, the doll is sacrificed instead.",
+    "Type": "Item",
+    "Rank": 7,
+    "Icon": "󱣻 md_teddy_bear"
+  },
+  {
+    "Name": "Beacon",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Use this to reveal the location of a descending stair case. However, it does not reveal how to get there.",
+    "Type": "Item",
+    "Rank": 1,
+    "Icon": "󰌵 md_lightbulb"
+  },
+  {
+    "Name": "Terror Horn",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Blow this horn to frighten away lesser creatures. Instantly kills creatures below level 5 but you receive no experience.",
+    "Type": "Item",
+    "Rank": 6,
+    "Icon": "󰃦 md_bullhorn"
+  },
+  {
+    "Name": "Coin Purse",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A bag of golden coinage. Does nothing but holding it increases your score.",
+    "Type": "Item",
+    "Rank": 5,
+    "Icon": " fa_sack_dollar"
+  },
+  {
+    "Name": "Bindor’s Deceit",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A fragile pod that you snap, creating enchanted smoke. Negates the enemy’s next two attacks.",
+    "Type": "Item",
+    "Rank": 3,
+    "Icon": "󰖝 md_weather_windy"
+  },
+  {
+    "Name": "Jethry’s Numenon",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A magical plate with numbers etched into it. Reveals the position of enemies on the floor.",
+    "Type": "Item",
+    "Rank": 5,
+    "Icon": "󰍍 md_map"
+  },
+  {
+    "Name": "Beserker Phial",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Drinking this grants +5 damage on the next 5 attacks.",
+    "Type": "Item",
+    "Rank": 6,
+    "Icon": "󱄰 md_bottle_tonic_plus"
+  },
+  {
+    "Name": "Behelit",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Use to instantly transit to the next floor. However, you permanently lose 5 HP.",
+    "Type": "Item",
+    "Rank": 9,
+    "Icon": "󰪯 md_egg"
+  },
+  {
+    "Name": "The Omatrix",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "Obtain this to win the game. Instantly generates an ascending staircase. Fight your way to the staircase to leave the dungeon!",
+    "Type": "Item",
+    "Rank": 10,
+    "FixedDrop": {
+      "floor": 50,
+      "onPickup": "spawn-exit"
+    },
+    "Icon": "U+eef5"
+  },
+  {
+    "Name": "Leather Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 5,
+    "Description": "Simple leather vestments. Provides a minimum of protection.",
+    "Type": "Armor",
+    "Rank": 1,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Patchwork Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 6,
+    "Description": "Armor cobbled together from other pieces. Often worn by desert wanderers.",
+    "Type": "Armor",
+    "Rank": 1,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Bone Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 7,
+    "Description": "Primitive mail derived from the bones of some huge creature. Worn primarily by orcs.",
+    "Type": "Armor",
+    "Rank": 2,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Chainmail",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 10,
+    "Description": "A suit of linked metal rings providing superb defense against mundane threats.",
+    "Type": "Armor",
+    "Rank": 3,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Splint Mail",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 11,
+    "Description": "An exotic suit comprised of flexile metal plates.",
+    "Type": "Armor",
+    "Rank": 4,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Samurai Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 12,
+    "Description": "Exceedingly rare armor forged in an Eastern land. Simple wooden plates are lacquered with enchanted paint, making it provide tremendous defense with no expense to dexterity.",
+    "Type": "Armor",
+    "Rank": 6,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Cuirass",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 14,
+    "Description": "A metal breastplate together with chainmail trappings.",
+    "Type": "Armor",
+    "Rank": 4,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Full Plate",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 20,
+    "Description": "A full suit of armor, including gauntlets and leg armor. An exceptionally rare find in the dungeon.",
+    "Type": "Armor",
+    "Rank": 6,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Lensman Garb",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 25,
+    "Description": "A strange, lightweight bodysuit that nevertheless can deflect strong blows.",
+    "Type": "Armor",
+    "Rank": 7,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Patrol Vestments",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 27,
+    "Description": "Lensman clothing with the addition of a vest and boots.",
+    "Type": "Armor",
+    "Rank": 8,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Power Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 40,
+    "Description": "An archaic relic of a bygone era. Unknown mechanics assist in movement.",
+    "Type": "Armor",
+    "Rank": 9,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Elven mail",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 35,
+    "Description": "Lightweight, enchanted mail forged by Elves.",
+    "Type": "Armor",
+    "Rank": 8,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Eschatological Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 45,
+    "Description": "Armor prophesied to be worn by a messiah. Heavily enchanted for superior defense.",
+    "Type": "Armor",
+    "Rank": 10,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Crystal Armor",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 50,
+    "Description": "Gleaming armor crafted from magical crystals. Provides unassailable defense.",
+    "Type": "Armor",
+    "Rank": 10,
+    "Icon": " fa_shirt"
+  },
+  {
+    "Name": "Leather Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 1,
+    "Description": "A simple piece of headwear that protects the scalp and jaw.",
+    "Type": "Helmet",
+    "Rank": 1,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Scout Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 3,
+    "Description": "A leather helm with an added metal veil.",
+    "Type": "Helmet",
+    "Rank": 1,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Iron Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 5,
+    "Description": "A generic metal helmet, providing better cranial protection.",
+    "Type": "Helmet",
+    "Rank": 2,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Beast Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 6,
+    "Description": "A primitive hide wrapped over the head, complete with the skull of a huge beast. Worn by orcs.",
+    "Type": "Helmet",
+    "Rank": 3,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Templar Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 10,
+    "Description": "Affectionately called a “bucket helm.” Favored amongst clerics.",
+    "Type": "Helmet",
+    "Rank": 3,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Full Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 12,
+    "Description": "A well-crafted steel helmet that protects the face and is commonly paired with full plate.",
+    "Type": "Helmet",
+    "Rank": 5,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Elven Circlet",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 10,
+    "Description": "A magical circlet worn by Elves.",
+    "Type": "Helmet",
+    "Rank": 4,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Lensman Scouter",
+    "Accuracy": 5,
+    "Damage": null,
+    "Defense": 2,
+    "Description": "A rare piece of gear worn by an ancient race. The read-out it displays aids the user’s accuracy.",
+    "Type": "Helmet",
+    "Rank": 7,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Power Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 20,
+    "Description": "A mechanical helmet meant to be paired with Power Armor.",
+    "Type": "Helmet",
+    "Rank": 9,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Samurai Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 12,
+    "Description": "An ornate wooden lacquered helmet cherished by Eastern men.",
+    "Type": "Helmet",
+    "Rank": 6,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Berserker Helm",
+    "Accuracy": 1,
+    "Damage": 5,
+    "Defense": 10,
+    "Description": "A horned helm worn by Dwarven berserkers. Impels one to violence and destruction.",
+    "Type": "Helmet",
+    "Rank": 6,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Phase Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 15,
+    "Description": "A circlet that projects an invisible barrier about the head.",
+    "Type": "Helmet",
+    "Rank": 8,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Eschatological Circlet",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 25,
+    "Description": "A golden crown worn by a prophesied being.",
+    "Type": "Helmet",
+    "Rank": 10,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Crystal Helm",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 30,
+    "Description": "An exquisite crystalline helmet providing superb defense.",
+    "Type": "Helmet",
+    "Rank": 10,
+    "Icon": " fa_helmet_safety"
+  },
+  {
+    "Name": "Barrier Talisman",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 1,
+    "Description": "An amulet enchanted to provide slight defense.",
+    "Type": "Amulet",
+    "Rank": 3,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Amulet of Health",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An amulet that adds +5 HP",
+    "Type": "Amulet",
+    "Rank": 5,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Mana Amulet",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A wizard’s necklace that adds +10 MP",
+    "Type": "Amulet",
+    "Rank": 5,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Amulet of Accuracy",
+    "Accuracy": 10,
+    "Damage": null,
+    "Defense": null,
+    "Description": "An amulet enchanted by Elves to improve accuracy.",
+    "Type": "Amulet",
+    "Rank": 6,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Amulet of Destruction",
+    "Accuracy": null,
+    "Damage": 10,
+    "Defense": null,
+    "Description": "An amulet enchanted to increase the user’s destructiveness.",
+    "Type": "Amulet",
+    "Rank": 6,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Phase Amulet",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A necklace that, when worn, has a 5% chance to negate an attack.",
+    "Type": "Amulet",
+    "Rank": 7,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Lucid Crystal",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": 5,
+    "Description": "In addition to providing a modicum of defense, this amulet prevents the user from being poisoned.",
+    "Type": "Amulet",
+    "Rank": 4,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "War Crest",
+    "Accuracy": null,
+    "Damage": 5,
+    "Defense": null,
+    "Description": "In addition to improving the bearer’s aggression, this crest allows the bearer to attack twice (doubling damage).",
+    "Type": "Amulet",
+    "Rank": 8,
+    "Icon": "󰟫 md_ring"
+  },
+  {
+    "Name": "Mana Font",
+    "Accuracy": null,
+    "Damage": null,
+    "Defense": null,
+    "Description": "A magical seed of incomprehensible power. Makes spells cost nothing.",
+    "Type": "Amulet",
+    "Rank": 10,
+    "Icon": "󰟫 md_ring"
+  }
+]
