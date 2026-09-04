@@ -44,10 +44,38 @@ jobs:
       - name: Deploy Qt runtime
         working-directory: standalone
         run: |
-          # windeployqt stages ALL required DLLs/plugins next to the exe —
-          # that folder IS the redistributable. Copy it wholesale as dist/.
+          # windeployqt stages the runtime next to the exe. Copy ONLY the
+          # runtime (exe + top-level DLLs + plugin/style/locale dirs) so
+          # build intermediates (CMakeFiles/, .qt/, .rcc/, omakon.lib,
+          # build.ninja, .ninja_*, staged sources) don't leak into the zip.
           windeployqt --release --qmldir . build/omakon.exe
-          Copy-Item build dist -Recurse -Exclude '*.obj','*.cpp','CMakeFiles','.qt','.ninja*'
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/*.exe dist/
+          Copy-Item build/*.dll dist/
+          foreach ($d in @('platforms','qml','tls','iconengines','imageformats','styles','generic','networkinformation','translations')) {
+            if (Test-Path "build/$d") { Copy-Item "build/$d" dist/ -Recurse -Force }
+          }
+
+          # Make the folder truly self-contained. windeployqt ships the
+          # vc_redist.x64.exe installer instead of the CRT DLLs, which needs
+          # an interactive install and breaks a clean unzip-and-run on a
+          # machine without the VC++ Redistributable. Copy the redist CRT
+          # DLLs next to the exe — Windows resolves the app folder before
+          # the system, so the app uses the bundled ones.
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -products * -property installationPath
+            $crtDlls = Get-ChildItem -Path (Join-Path $vsPath "VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT\*.dll") -ErrorAction SilentlyContinue
+            if ($crtDlls) {
+              $crtDlls | ForEach-Object { Copy-Item $_.FullName dist/ -Force }
+              Write-Host "Bundled CRT DLLs:"
+              $crtDlls | ForEach-Object { Write-Host "  $($_.Name)" }
+            } else {
+              Write-Host "WARNING: could not locate MSVC CRT DLLs; vc_redist.x64.exe is the only runtime path in this build"
+            }
+          } else {
+            Write-Host "WARNING: vswhere not found; skipping CRT bundling (vc_redist.x64.exe fallback remains)"
+          }
 
       - name: Package zip
         working-directory: standalone
