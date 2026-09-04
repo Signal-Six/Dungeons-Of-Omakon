@@ -55,8 +55,12 @@ glyphs.
 No Omarchy needed — the game also ships as a plain desktop app for Windows.
 Grab the latest `omakon-windows-*.zip` from the
 [Releases](https://github.com/Signal-Six/Dungeons-Of-Omakon/releases) page,
-extract it, and run `omakon.exe`. No install; the folder is self-contained
-(Qt runtime bundled). Delete the folder to uninstall.
+extract it, and run `omakon.exe`. The folder is self-contained (Qt runtime
+bundled). Delete the folder to uninstall.
+
+First run only: if Windows complains about a missing Visual C++ runtime,
+run `vc_redist.x64.exe` (in the same folder) once — it installs the VC++
+Redistributable quietly and can be left in place or deleted afterwards.
 
 Saves live at `%APPDATA%\SignalSix\omakon\run.json` — runs persist between
 sessions just like the plugin version.
