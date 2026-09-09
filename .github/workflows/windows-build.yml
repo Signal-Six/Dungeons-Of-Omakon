@@ -23,10 +23,10 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Qt 6 (MSVC)
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
           version: '6.8.*'
           arch: win64_msvc2022_64
@@ -36,7 +36,7 @@ jobs:
       # ABI-incompatible with the MSVC Qt build above. Enter the MSVC dev
       # shell so cl.exe wins compiler detection.
       - name: Set up MSVC dev environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Configure
         working-directory: standalone
@@ -91,7 +91,7 @@ jobs:
           Compress-Archive dist/* "omakon-windows-$shaver.zip"
 
       - name: Upload CI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: omakon-windows
           path: standalone/omakon-windows-*.zip
@@ -101,7 +101,7 @@ jobs:
       # login (Actions artifacts require auth to download).
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: standalone/omakon-windows-*.zip
           generate_release_notes: true
